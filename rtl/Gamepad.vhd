@@ -13,6 +13,7 @@ entity Gamepad is
       second_ena           : in  std_logic;
      
       PADTYPE              : in  std_logic_vector(2 downto 0); -- 000 = normal, 001 = empty, 010 = cpak, 011 = rumble, 100 = snac, 101 = transfer pak
+      padIndex             : in  unsigned(1 downto 0);
       MOUSETYPE            : in  std_logic_vector(2 downto 0); -- 00 - mouse off, 001 : ABZ, 010: ZAB, 011: ZBA
       PADDPADSWAP          : in  std_logic;
       
@@ -180,24 +181,24 @@ architecture arch of Gamepad is
    
 begin 
               
-   pad_muxed_A          <= pad_A(to_integer(command_padindex));         
-   pad_muxed_B          <= pad_B(to_integer(command_padindex));         
-   pad_muxed_Z          <= pad_Z(to_integer(command_padindex));         
-   pad_muxed_START      <= pad_START(to_integer(command_padindex));     
-   pad_muxed_DPAD_UP    <= pad_DPAD_UP(to_integer(command_padindex));   
-   pad_muxed_DPAD_DOWN  <= pad_DPAD_DOWN(to_integer(command_padindex)); 
-   pad_muxed_DPAD_LEFT  <= pad_DPAD_LEFT(to_integer(command_padindex)); 
-   pad_muxed_DPAD_RIGHT <= pad_DPAD_RIGHT(to_integer(command_padindex));
-   pad_muxed_L          <= pad_L(to_integer(command_padindex));      
-   pad_muxed_R          <= pad_R(to_integer(command_padindex));      
-   pad_muxed_C_UP       <= pad_C_UP(to_integer(command_padindex));   
-   pad_muxed_C_DOWN     <= pad_C_DOWN(to_integer(command_padindex)); 
-   pad_muxed_C_LEFT     <= pad_C_LEFT(to_integer(command_padindex)); 
-   pad_muxed_C_RIGHT    <= pad_C_RIGHT(to_integer(command_padindex));
+   pad_muxed_A          <= pad_A(to_integer(padIndex));         
+   pad_muxed_B          <= pad_B(to_integer(padIndex));         
+   pad_muxed_Z          <= pad_Z(to_integer(padIndex));         
+   pad_muxed_START      <= pad_START(to_integer(padIndex));     
+   pad_muxed_DPAD_UP    <= pad_DPAD_UP(to_integer(padIndex));   
+   pad_muxed_DPAD_DOWN  <= pad_DPAD_DOWN(to_integer(padIndex)); 
+   pad_muxed_DPAD_LEFT  <= pad_DPAD_LEFT(to_integer(padIndex)); 
+   pad_muxed_DPAD_RIGHT <= pad_DPAD_RIGHT(to_integer(padIndex));
+   pad_muxed_L          <= pad_L(to_integer(padIndex));      
+   pad_muxed_R          <= pad_R(to_integer(padIndex));      
+   pad_muxed_C_UP       <= pad_C_UP(to_integer(padIndex));   
+   pad_muxed_C_DOWN     <= pad_C_DOWN(to_integer(padIndex)); 
+   pad_muxed_C_LEFT     <= pad_C_LEFT(to_integer(padIndex)); 
+   pad_muxed_C_RIGHT    <= pad_C_RIGHT(to_integer(padIndex));
    
    process (all)
    begin
-      case (command_padindex) is
+      case (padIndex) is
          when "00"   => pad_muxed_analogH <= pad_0_analog_h; pad_muxed_analogV <= std_logic_vector(-signed(pad_0_analog_v));
          when "01"   => pad_muxed_analogH <= pad_1_analog_h; pad_muxed_analogV <= std_logic_vector(-signed(pad_1_analog_v));
          when "10"   => pad_muxed_analogH <= pad_2_analog_h; pad_muxed_analogV <= std_logic_vector(-signed(pad_2_analog_v));

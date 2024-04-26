@@ -397,7 +397,13 @@ architecture arch of n64top is
    signal PADTYPE_latched0       : std_logic_vector(2 downto 0);
    signal PADTYPE_latched1       : std_logic_vector(2 downto 0);
    signal PADTYPE_latched2       : std_logic_vector(2 downto 0);
-   signal PADTYPE_latched3       : std_logic_vector(2 downto 0);
+   signal PADTYPE_latched3       : std_logic_vector(2 downto 0);   
+   
+   signal padIndex               : unsigned(1 downto 0);
+   signal padIndex0              : unsigned(1 downto 0);
+   signal padIndex1              : unsigned(1 downto 0);
+   signal padIndex2              : unsigned(1 downto 0);
+   signal padIndex3              : unsigned(1 downto 0);
    
    signal command_start          : std_logic;
    signal command_padindex       : unsigned(1 downto 0);
@@ -1043,6 +1049,33 @@ begin
             PADTYPE_latched2 <= PADTYPE2;
             PADTYPE_latched3 <= PADTYPE3;
          end if;
+         
+         padIndex0 <= "00";
+         padIndex1 <= "01";
+         padIndex2 <= "10";
+         padIndex3 <= "11";
+         
+         if (PADTYPE_latched0 = "100" and PADTYPE_latched1 = "100" and PADTYPE_latched2 = "100") then -- 1+2+3 snac, 4 usb
+            padIndex3 <= "00";
+         elsif (PADTYPE_latched0 = "100" and PADTYPE_latched1 = "100") then -- 1+2 snac, 3+4 usb
+            padIndex2 <= "00";
+            padIndex3 <= "01";
+         elsif (PADTYPE_latched0 = "100" and PADTYPE_latched2 = "100") then -- 1+3 snac, 2+4 usb
+            padIndex1 <= "00";
+            padIndex3 <= "01";
+         elsif (PADTYPE_latched1 = "100" and PADTYPE_latched2 = "100") then -- 2+3 snac, 1+4 usb
+            padIndex3 <= "01";
+         elsif (PADTYPE_latched0 = "100") then -- 1 snac, 2+3+4 usb
+            padIndex1 <= "00";
+            padIndex2 <= "01";
+            padIndex3 <= "10";
+         elsif (PADTYPE_latched1 = "100") then -- 2 snac, 1+3+4 usb
+            padIndex2 <= "01";
+            padIndex3 <= "10";
+         elsif (PADTYPE_latched2 = "100") then -- 3 snac, 1+2+4 usb
+            padIndex3 <= "10";
+         end if;
+         
       end if;
    end process;
    
@@ -1050,6 +1083,11 @@ begin
                              PADTYPE_latched1 when (command_padindex = "01") else 
                              PADTYPE_latched2 when (command_padindex = "10") else 
                              PADTYPE_latched3;
+                             
+   padIndex               <= padIndex0 when (command_padindex = "00") else 
+                             padIndex1 when (command_padindex = "01") else 
+                             padIndex2 when (command_padindex = "10") else 
+                             padIndex3;
                              
    snac                   <= '1' when (PADTYPE_latched = "100") else '0';
    
@@ -1156,6 +1194,7 @@ begin
       second_ena           => second_ena,
       
       PADTYPE              => PADTYPE_latched,
+      padIndex             => padIndex,
       MOUSETYPE            => MOUSETYPE,
       PADDPADSWAP          => PADDPADSWAP,
       
