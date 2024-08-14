@@ -264,6 +264,7 @@ architecture arch of cpu is
    signal decodeMemReadEnable          : std_logic := '0';
    signal decodeMem64Bit               : std_logic := '0';
    signal decodeCacheEnable            : std_logic := '0';
+   signal decodeCacheTLBTranslate      : std_logic := '0';
    signal decodeSetLL                  : std_logic := '0';
    signal decodeResetLL                : std_logic := '0';
    signal decodeERET                   : std_logic := '0';
@@ -1303,6 +1304,7 @@ begin
                   decodeMemReadEnable     <= '0';
                   decodeMem64Bit          <= '0';
                   decodeCacheEnable       <= '0';
+                  decodeCacheTLBTranslate <= '0';
                   decodeSetLL             <= '0';
                   decodeResetLL           <= '0';
                   decodeERET              <= '0';
@@ -1900,6 +1902,13 @@ begin
                         
                      when 16#2F# => -- Cache
                         decodeCacheEnable       <= '1';
+                        decodeCacheTLBTranslate <= '1';
+                        
+                        case (to_integer(decSource2)) is
+                           when 16#00# | 16#08# | 16#10# => decodeCacheTLBTranslate <= '0';
+                           when others => null;
+                        end case;
+                        
                         case (to_integer(decSource2)) is
                            when 16#00# | 16#01# | 16#05# | 16#08# | 16#09# | 16#0D# | 16#10# | 16#11# | 16#15# | 16#19# => null;
                            when others => error_instr <= '1';
@@ -2236,7 +2245,7 @@ begin
                    '1' when (privilegeMode = "10" and (calcMemAddr(31 downto 29) < 4)) else
                    '0';
    
-   EXETLBDataAccess <= decodeMemReadEnable or decodeMemWriteEnable or decodeCacheEnable or decodeMemWriteLL when (EXETLBMapped = '1' and exception = '0' and stall = 0 and executeIgnoreNext = '0' and decodeNew = '1') else '0';
+   EXETLBDataAccess <= decodeMemReadEnable or decodeMemWriteEnable or decodeCacheTLBTranslate or decodeMemWriteLL when (EXETLBMapped = '1' and exception = '0' and stall = 0 and executeIgnoreNext = '0' and decodeNew = '1') else '0';
 
    ---------------------- load/store ------------------
    
@@ -2480,7 +2489,7 @@ begin
                if (EXETLBDataAccess = '1') then
                   executeMemAddress <= TLB_dataAddrOutFound;
                else
-                  executeMemAddress <= calcMemAddr(31 downto 0);
+                  executeMemAddress <= "000" & calcMemAddr(28 downto 0); -- only for 32bit addressing mode!
                end if;
                
                executeCOP0WriteValue   <= EXECOP0WriteValue; 

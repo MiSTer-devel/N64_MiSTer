@@ -165,7 +165,7 @@ begin
    generic map 
    ( 
       addr_width  => 9,
-      data_width  => 22 -- 30 bits(31..12) of address + 1 bit valid + 1 bit dirty
+      data_width  => 22 -- 20 bits(31..12) of address + 1 bit valid + 1 bit dirty
    )
    port map
    (
@@ -192,7 +192,7 @@ begin
    --itagram : entity mem.RamMLAB
    --generic map
    --(
-   --   width      => 22, -- 30 bits(31..12) of address + 1 bit valid + 1 bit dirty
+   --   width      => 22, -- 20 bits(31..12) of address + 1 bit valid + 1 bit dirty
    --   widthad    => 9
    --)
    --port map

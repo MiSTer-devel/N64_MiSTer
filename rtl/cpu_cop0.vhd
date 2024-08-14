@@ -297,6 +297,7 @@ architecture arch of cpu_cop0 is
    signal TLB_fetchRandom                 : std_logic := '0';
    signal TLB_fetchSource                 : unsigned(4 downto 0) := (others => '0');
    signal TLB_fetchAddrOut                : unsigned(31 downto 0) := (others => '0');
+   signal TLB_fetchAddrOutMasked          : unsigned(31 downto 0) := (others => '0');
    
 -- synthesis translate_off
    type tTLBENTRY is record
@@ -1177,6 +1178,8 @@ begin
    TLBREAD_region   <= unsigned(TLBMEM_readData(99 downto 98));
    TLBREAD_random   <= TLBMEM_readData(100);
    
+   TLB_fetchAddrOutMasked <= "000" & TLB_fetchAddrOut(28 downto 0); -- only for 32bit mode, 64bit needs addr &= 0x7FFFFFFF;
+   
    icpu_TLB_instr : entity work.cpu_TLB_instr
    port map
    (
@@ -1211,7 +1214,7 @@ begin
       TLB_fetchCached      => TLB_fetchCached,     
       TLB_fetchRandom      => TLB_fetchRandom, 
       TLB_fetchSource      => TLB_fetchSource,
-      TLB_fetchAddrOut     => TLB_fetchAddrOut 
+      TLB_fetchAddrOut     => TLB_fetchAddrOutMasked 
    );
    
    icpu_TLB_data : entity work.cpu_TLB_data
@@ -1248,7 +1251,7 @@ begin
       TLB_fetchCached      => TLB_fetchCached,     
       TLB_fetchDirty       => TLB_fetchDirty,     
       TLB_fetchSource      => TLB_fetchSource, 
-      TLB_fetchAddrOut     => TLB_fetchAddrOut 
+      TLB_fetchAddrOut     => TLB_fetchAddrOutMasked 
    );
    
    -- synthesis translate_off

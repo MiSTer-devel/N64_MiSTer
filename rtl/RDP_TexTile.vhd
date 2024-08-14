@@ -38,7 +38,7 @@ architecture arch of RDP_TexTile is
 
    signal shifted          : signed(15 downto 0);
             
-   signal relative         : signed(15 downto 0);
+   signal relative         : signed(16 downto 0);
    
    signal clampMax         : unsigned(9 downto 0);
    signal clamp_index      : unsigned(10 downto 0);
@@ -97,8 +97,7 @@ begin
    shifted <= shift_right(coord, to_integer(tile_shift)) when (tile_shift < 11) else
               coord sll (16 - to_integer(tile_shift));
    
-   relative <= shifted - to_integer(tile_min & "000");
-   
+   relative <= resize(shifted, 17) - to_integer(tile_min & "000");
    
    -- clamp
    clampMax <= tile_max(11 downto 2) - tile_min(11 downto 2);
