@@ -83,7 +83,7 @@ architecture arch of AI is
    signal dataValid_clkvid    : std_logic_vector(3 downto 0);
       
    -- clk vid signals   
-   signal waittime            : unsigned(13 downto 0) := (others => '0');
+   signal waittime            : unsigned(14 downto 0) := (others => '0');
    signal fifo_next           : std_logic := '0';
          
    signal fifo_Din            : std_logic_vector(31 downto 0);
@@ -284,9 +284,9 @@ begin
          waittime <= waittime - 1;
          if (waittime = 0) then
          
-            waittime <= AI_DACRATE; -- no clock domain crossing, should not change while playing sound
+            waittime <= resize(AI_DACRATE, waittime'length) + 1; -- no clock domain crossing, should not change while playing sound
             if (AI_DACRATE < 16#200#) then
-               waittime <= 14x"200"; 
+               waittime <= 15x"200"; 
             end if;
             
             if (fifo_Empty = '0') then
