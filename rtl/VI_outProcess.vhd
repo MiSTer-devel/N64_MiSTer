@@ -17,6 +17,7 @@ entity VI_outProcess is
                   
       ISPAL                         : in  std_logic;
       VI_BILINEAROFF                : in  std_logic;
+      VI_DEBLUR                     : in  std_logic;
       VI_GAMMAOFF                   : in  std_logic;
       VI_NOISEOFF                   : in  std_logic;
       VI_CTRL_GAMMA_DITHER_ENABLE   : in  std_logic;
@@ -110,6 +111,8 @@ architecture arch of VI_outProcess is
    signal bi_clear      : std_logic := '0';
    -- synthesis translate_on
    
+   signal out_deblur    : std_logic := '0';
+   
    signal lfsr          : unsigned(22 downto 0) := (others => '0');
    
    signal gamma_guard   : std_logic := '0';
@@ -175,6 +178,7 @@ begin
                   line_x_max  <= x_max;
                   x_min       <= (others => '1');
                   x_max       <= (others => '0');
+                  out_deblur  <= '0';
                end if;
                
             when STARTFETCH =>
@@ -270,23 +274,28 @@ begin
             out_x     <= bi_x;
             out_y     <= bi_y;
          end if;
-        
-         if (gamma_start_1 = '1') then out_color( 7 downto  0) <= gamma_sqrt; end if;
-         if (gamma_start_2 = '1') then out_color(15 downto  8) <= gamma_sqrt; end if;
-         if (gamma_start_3 = '1') then out_color(23 downto 16) <= gamma_sqrt; end if;
          
          if (gamma_start_3 = '1') then
             out_pixel <= '1';
+            if (VI_DEBLUR = '1') then
+               out_deblur  <= not out_deblur;
+            end if;
          end if;
             
-         if (VI_GAMMAOFF = '1' or VI_CTRL_GAMMA_ENABLE = '0') then
-            out_color <= bi_out(2) & bi_out(1) & bi_out(0);
-         end if;
+         if (out_deblur = '0') then
+            if (gamma_start_1 = '1') then out_color( 7 downto  0) <= gamma_sqrt; end if;
+            if (gamma_start_2 = '1') then out_color(15 downto  8) <= gamma_sqrt; end if;
+            if (gamma_start_3 = '1') then out_color(23 downto 16) <= gamma_sqrt; end if;
          
-         if (VI_CTRL_GAMMA_DITHER_ENABLE = '1' and VI_NOISEOFF = '0') then
-            out_color( 0) <= lfsr(0);
-            out_color( 8) <= lfsr(1);
-            out_color(16) <= lfsr(2);
+            if (VI_GAMMAOFF = '1' or VI_CTRL_GAMMA_ENABLE = '0') then
+               out_color <= bi_out(2) & bi_out(1) & bi_out(0);
+            end if;
+            
+            if (VI_CTRL_GAMMA_DITHER_ENABLE = '1' and VI_NOISEOFF = '0') then
+               out_color( 0) <= lfsr(0);
+               out_color( 8) <= lfsr(1);
+               out_color(16) <= lfsr(2);
+            end if;
          end if;
          
          if (gamma_guard = '1' or VI_X_SCALE_FACTOR = 0) then

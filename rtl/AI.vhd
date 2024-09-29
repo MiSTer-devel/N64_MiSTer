@@ -85,6 +85,7 @@ architecture arch of AI is
    -- clk vid signals   
    signal waittime            : unsigned(14 downto 0) := (others => '0');
    signal fifo_next           : std_logic := '0';
+   signal soundFifoTimeout    : integer range 0 to 2047 := 0;
          
    signal fifo_Din            : std_logic_vector(31 downto 0);
    signal fifo_wr             : std_logic := '0';
@@ -259,6 +260,8 @@ begin
    
    
    process (clkvid)
+      variable soundSignedL : signed(15 downto 0);
+      variable soundSignedR : signed(15 downto 0);
    begin
       if rising_edge(clkvid) then
       
@@ -290,12 +293,39 @@ begin
             end if;
             
             if (fifo_Empty = '0') then
-               fifo_Rd         <= '1';
-               sound_out_left  <= fifo_Dout(7 downto 0) & fifo_Dout(15 downto 8);
-               sound_out_right <= fifo_Dout(23 downto 16) & fifo_Dout(31 downto 24);
+            
+               fifo_Rd          <= '1';
+               soundFifoTimeout <= 0;
+
+               soundSignedL := signed(fifo_Dout( 7 downto  0)) & signed(fifo_Dout(15 downto  8));
+               soundSignedR := signed(fifo_Dout(23 downto 16)) & signed(fifo_Dout(31 downto 24));
+               
+               if (soundSignedL = -32768) then soundSignedL := to_signed(32767, 16); else soundSignedL := -soundSignedL; end if;
+               if (soundSignedR = -32768) then soundSignedR := to_signed(32767, 16); else soundSignedR := -soundSignedR; end if;
+               
+               sound_out_left  <= std_logic_vector(soundSignedL);
+               sound_out_right <= std_logic_vector(soundSignedR);
+
+            elsif (soundFifoTimeout < 2047) then
+               soundFifoTimeout <= soundFifoTimeout + 1;
             else
-               sound_out_left  <= (others => '0');
-               sound_out_right <= (others => '0');
+            
+               if (signed(sound_out_left) <= -16) then 
+                  sound_out_left <= std_logic_vector(signed(sound_out_left) + 16);
+               elsif (signed(sound_out_left) >= 16) then
+                  sound_out_left <= std_logic_vector(signed(sound_out_left) - 16);
+               else
+                  sound_out_left  <= (others => '0');
+               end if;
+               
+               if (signed(sound_out_right) <= -16) then 
+                  sound_out_right <= std_logic_vector(signed(sound_out_right) + 16);
+               elsif (signed(sound_out_right) >= 16) then
+                  sound_out_right <= std_logic_vector(signed(sound_out_right) - 16);
+               else
+                  sound_out_right  <= (others => '0');
+               end if;
+               
             end if;  
          end if;
          

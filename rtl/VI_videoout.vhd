@@ -25,6 +25,7 @@ entity VI_videoout is
       FIXEDBLANKS                      : in  std_logic;
       CROPVERTICAL                     : in  unsigned(1 downto 0);
       VI_BILINEAROFF                   : in  std_logic;
+      VI_DEBLUR                        : in  std_logic;
       VI_GAMMAOFF                      : in  std_logic;
       VI_NOISEOFF                      : in  std_logic;
       VI_DEDITHEROFF                   : in  std_logic;
@@ -202,6 +203,8 @@ architecture arch of VI_videoout is
    signal outram_do_B         : std_logic_vector(23 downto 0);
    
    signal videoout_readAddr   : unsigned(10 downto 0);
+   
+   signal VI_DEBLUR_2xscale   : std_logic;
 
    -- overlay
    signal overlay_xpos        : unsigned(9 downto 0);
@@ -503,6 +506,8 @@ begin
    
    filterram_addr_B <= std_logic_vector(filterAddr);
    
+   VI_DEBLUR_2xscale <= '1' when (VI_DEBLUR = '1' and VI_X_SCALE_FACTOR = x"200") else '0';
+   
    iVI_outProcess : entity work.VI_outProcess
    port map
    (
@@ -513,6 +518,7 @@ begin
             
       ISPAL                         => ISPAL,
       VI_BILINEAROFF                => VI_BILINEAROFF,
+      VI_DEBLUR                     => VI_DEBLUR_2xscale,
       VI_GAMMAOFF                   => VI_GAMMAOFF,
       VI_NOISEOFF                   => VI_NOISEOFF,
       VI_CTRL_AA_MODE               => VI_CTRL_AA_MODE,

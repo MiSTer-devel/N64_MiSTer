@@ -28,6 +28,7 @@ entity n64top is
       FIXEDBLANKS             : in  std_logic;
       CROPVERTICAL            : in  unsigned(1 downto 0);
       VI_BILINEAROFF          : in  std_logic;
+      VI_DEBLUR               : in  std_logic;
       VI_GAMMAOFF             : in  std_logic;
       VI_DEDITHEROFF          : in  std_logic;
       VI_DEDITHERFORCE        : in  std_logic;
@@ -823,6 +824,7 @@ begin
       FIXEDBLANKS          => FIXEDBLANKS,
       CROPVERTICAL         => CROPVERTICAL,
       VI_BILINEAROFF       => VI_BILINEAROFF,
+      VI_DEBLUR            => VI_DEBLUR,
       VI_GAMMAOFF          => VI_GAMMAOFF,
       VI_NOISEOFF          => VI_NOISEOFF,
       VI_DEDITHEROFF       => VI_DEDITHEROFF,

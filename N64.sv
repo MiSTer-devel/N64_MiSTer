@@ -211,6 +211,7 @@ pll pll
 	.outclk_0(clk_1x),
 	.outclk_1(clk_93),
 	.outclk_2(clk_2x),
+	.outclk_3(SDRAM_CLK),
    .locked(pll_locked)
 );
 
@@ -323,6 +324,7 @@ parameter CONF_STR = {
    "P1O[105],Video Out,Original(VI),Clean HDMI;",
    "D1P1O[104],VI Colorbits,Original(21),24;",
    "D1P1O[32],VI Bilinear,Original,Off;",
+   "D1P1O[89],VI Deblur,Original,On;",
    "D1P1O[33],VI Gamma,Original,Off;",
    "D1P1O[88:87],VI Dedither,Original,Off,Force;",
    "D1P1O[35],VI Antialias,Original,Off;",
@@ -340,6 +342,7 @@ parameter CONF_STR = {
 	"P2-;",
    "P2-,From N64-database;",
 	"P2O[64],Auto Detect,On,Off;",
+   "P2O[90],Patch games,Yes(Auto),Off;",
    "P2O[70],RAM size,8MByte,4MByte;",
    "P2O[80:79],System Type,NTSC,PAL;",
 	"P2O[68:65],CIC,6101,6102,7101,7102,6103,7103,6105,7105,6106,7106,8303,8401,5167,DDUS,5101;",
@@ -730,6 +733,7 @@ n64top
    .FIXEDBLANKS(~status[82] && ~status[105]),
    .CROPVERTICAL(status[45:44]),
    .VI_BILINEAROFF(status[32]),
+   .VI_DEBLUR(status[89]),
    .VI_GAMMAOFF(status[33]),
    .VI_DEDITHEROFF(status[87]),
    .VI_DEDITHERFORCE(status[88]),

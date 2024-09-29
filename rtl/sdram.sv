@@ -33,7 +33,7 @@ module sdram
 	output            SDRAM_nRAS,  // row address select
 	output            SDRAM_nCAS,  // columns address select
 	output            SDRAM_CKE,   // clock enable
-	output            SDRAM_CLK,   // clock for chip
+	//output            SDRAM_CLK,   // clock for chip
 
 	input      [26:0] ch1_addr,    // 25 bit address for 8bit mode. addr[0] = 0 for 16bit mode for correct operations.
 	output reg [31:0] ch1_dout,    // data output to cpu
@@ -77,7 +77,7 @@ localparam NO_WRITE_BURST      = 1'b1;     // 0= write burst enabled, 1=only sin
 localparam MODE                = {3'b000, NO_WRITE_BURST, OP_MODE, CAS_LATENCY, ACCESS_TYPE, BURST_CODE};
 
 localparam sdram_startup_cycles= 14'd12100;// 100us, plus a little more, @ 100MHz
-localparam cycles_per_refresh  = 14'd500;  // (64000*64)/8192-1 Calc'd as (64ms @ 64MHz)/8192 rose
+localparam cycles_per_refresh  = 14'd300;  // (64000*64)/8192-1 Calc'd as (64ms @ 64MHz)/8192 rose
 localparam startup_refresh_max = 14'b11111111111111;
 
 // SDRAM commands
@@ -212,7 +212,7 @@ always @(posedge clk) begin
 		end
 
 		STATE_IDLE: begin
-			if (refresh_count > (cycles_per_refresh << 1)) begin
+			if (refresh_count > cycles_per_refresh) begin
 				// Priority is to issue a refresh if one is outstanding
 				state <= STATE_IDLE_1;
 			end
@@ -295,29 +295,29 @@ always @(posedge clk) begin
 	end
 end
 
-altddio_out
-#(
-	.extend_oe_disable("OFF"),
-	.intended_device_family("Cyclone V"),
-	.invert_output("OFF"),
-	.lpm_hint("UNUSED"),
-	.lpm_type("altddio_out"),
-	.oe_reg("UNREGISTERED"),
-	.power_up_high("OFF"),
-	.width(1)
-)
-sdramclk_ddr
-(
-	.datain_h(1'b0),
-	.datain_l(1'b1),
-	.outclock(clk),
-	.dataout(SDRAM_CLK),
-	.aclr(1'b0),
-	.aset(1'b0),
-	.oe(1'b1),
-	.outclocken(1'b1),
-	.sclr(1'b0),
-	.sset(1'b0)
-);
+//altddio_out
+//#(
+//	.extend_oe_disable("OFF"),
+//	.intended_device_family("Cyclone V"),
+//	.invert_output("OFF"),
+//	.lpm_hint("UNUSED"),
+//	.lpm_type("altddio_out"),
+//	.oe_reg("UNREGISTERED"),
+//	.power_up_high("OFF"),
+//	.width(1)
+//)
+//sdramclk_ddr
+//(
+//	.datain_h(1'b0),
+//	.datain_l(1'b1),
+//	.outclock(clk),
+//	.dataout(SDRAM_CLK),
+//	.aclr(1'b0),
+//	.aset(1'b0),
+//	.oe(1'b1),
+//	.outclocken(1'b1),
+//	.sclr(1'b0),
+//	.sset(1'b0)
+//);
 
 endmodule
