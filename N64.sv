@@ -211,7 +211,6 @@ pll pll
 	.outclk_0(clk_1x),
 	.outclk_1(clk_93),
 	.outclk_2(clk_2x),
-	.outclk_3(SDRAM_CLK),
    .locked(pll_locked)
 );
 
@@ -393,6 +392,7 @@ parameter CONF_STR = {
 	"Restore state 3,",
 	"Save to state 4,",
 	"Restore state 4;",
+	"turbo;",
 	"V,v",`BUILD_DATE
 };
 

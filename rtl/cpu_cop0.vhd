@@ -323,6 +323,12 @@ architecture arch of cpu_cop0 is
    -- savestates
    type t_ssarray is array(0 to 31) of unsigned(63 downto 0);
    signal ss_in  : t_ssarray := (others => (others => '0'));  
+   
+   -- counthack
+   constant COUNTHACK_ON   : std_logic := '1';
+   constant COUNTHACK_CLK1 : integer := 125;
+   constant COUNTHACK_CLK2 : integer := 160;
+   signal COUNTHACK_cnt    : unsigned(15 downto 0) := (others => '0');
 
 begin 
 
@@ -613,7 +619,18 @@ begin
 
             -- count
             if (cop0Written9 = 0) then
-               COP0_9_COUNT <= COP0_9_COUNT + 1;
+               
+               if (COUNTHACK_ON = '1') then
+                  if (COUNTHACK_cnt >= COUNTHACK_CLK2) then
+                     COUNTHACK_cnt <= COUNTHACK_cnt + COUNTHACK_CLK1 - COUNTHACK_CLK2;
+                     COP0_9_COUNT  <= COP0_9_COUNT + 1;
+                  else
+                     COUNTHACK_cnt <= COUNTHACK_cnt + COUNTHACK_CLK1;
+                  end if;
+               else
+                  COP0_9_COUNT <= COP0_9_COUNT + 1;
+               end if;
+               
                if (COP0_9_COUNT(32 downto 1) = COP0_11_COMPARE) then
                   COP0_13_CAUSE_interruptPending(7) <= '1';
                end if;

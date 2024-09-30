@@ -144,7 +144,7 @@ architecture arch of VI is
    -- fps counter
    signal fpscountBCD               : unsigned(7 downto 0) := (others => '0');
    signal fpscountBCD_next          : unsigned(7 downto 0) := (others => '0');
-   signal fps_SecondCounter         : integer range 0 to 62499999 := 0;
+   signal fps_SecondCounter         : integer range 0 to 79999999 := 0;
    signal fps_VI_ORIGIN_last        : unsigned(23 downto 0) := (others => '0');
 
    -- savestates
@@ -350,7 +350,7 @@ begin
             end if;
             
             second_ena <= '0';
-            if (fps_SecondCounter = 62499999) then
+            if (fps_SecondCounter = 79999999) then
                fps_SecondCounter <= 0;
                second_ena        <= '1';
                fpscountBCD       <= fpscountBCD_next;

@@ -15,12 +15,12 @@ module N64_SNAC(
 		input [5:0] sendCnt
 );
 
-localparam THIRTYTWOuSECONDS = 11'd2000;
-localparam THREEuSECONDS = 8'd191;
-localparam TWOuSECONDS = 8'd126;
-localparam ONEuSECONDS = 8'd64;
+localparam THIRTYTWOuSECONDS = 12'd2560;
+localparam THREEuSECONDS = 8'd245;
+localparam TWOuSECONDS = 8'd161;
+localparam ONEuSECONDS = 8'd82;
 
-reg [10:0]waitTimer = 11'd0;
+reg [11:0]waitTimer = 12'd0;
 reg [8:0]counter = 9'd0;
 reg [2:0]bitCnt = 3'd0;
 reg [5:0]byteCnt = 6'd0;
@@ -156,7 +156,7 @@ begin
 					end else begin //received stop bit, transmission done, go to idle
 						state <= 3'd0;
 						byteRec <= 1'b1;
-						waitTimer <= 11'd0;
+						waitTimer <= 12'd0;
 					end
 				end
 			end
