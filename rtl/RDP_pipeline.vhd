@@ -72,6 +72,8 @@ entity RDP_pipeline is
       TextureReadEna          : out std_logic;
       TextureAddr             : out tTextureRamAddr;
       TextureRamData          : in  tTextureRamData;
+      PaletteAddr             : out tPaletteRamAddr;
+      PaletteRamData          : in  tPaletteRamData;
       
       FBAddr                  : out unsigned(10 downto 0);
       FBData                  : in  std_logic_vector(31 downto 0);
@@ -1424,7 +1426,9 @@ begin
       frac_T               => texture_T_frac,                 
       
       tex_addr             => TextureAddr,
-      tex_data_in          => TextureRamData,
+      tex_data_in          => TextureRamData,      
+      PaletteAddr          => PaletteAddr,
+      PaletteRamData       => PaletteRamData,
       
       -- synthesis translate_off
       export_TextureAddr   => export_TextureAddr,

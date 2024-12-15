@@ -297,7 +297,9 @@ package pRDP is
    type tcolor44_u9 is array(0 to 3) of tcolor4_u9;
    
    type tTextureRamAddr is array(0 to 7) of std_logic_vector(7 downto 0);
-   type tTextureRamData is array(0 to 7) of std_logic_vector(15 downto 0);
+   type tTextureRamData is array(0 to 7) of std_logic_vector(15 downto 0);   
+   type tPaletteRamAddr is array(0 to 3) of std_logic_vector(7 downto 0);
+   type tPaletteRamData is array(0 to 3) of std_logic_vector(15 downto 0);
 
    constant SIZE_4BIT  : unsigned(1 downto 0) := "00";
    constant SIZE_8BIT  : unsigned(1 downto 0) := "01";

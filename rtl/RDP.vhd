@@ -257,7 +257,9 @@ architecture arch of RDP is
    signal TextureRamDataIn          : tTextureRamData;
    signal TextureReadData           : tTextureRamData;
    signal TextureReadAddr           : tTextureRamAddr;    
-   signal TextureReadEna            : std_logic;    
+   signal TextureReadEna            : std_logic;   
+   signal PaletteReadData           : tPaletteRamData;
+   signal PaletteReadAddr           : tPaletteRamAddr;    
    
    -- Fill line
    signal stall_raster              : std_logic := '0';
@@ -1081,6 +1083,34 @@ begin
       
    end generate;
    
+   PaletteReadData(0) <= TextureReadData(4);
+   
+   gPaletteRam: for i in 1 to 3 generate
+   begin
+   
+      iPaletteRam: entity mem.dpram
+      generic map 
+      ( 
+         addr_width  => 8,
+         data_width  => 16
+      )
+      port map
+      (
+         clock_a     => clk1x,
+         address_a   => std_logic_vector(TextureRamAddr),
+         data_a      => TextureRamDataIn(4),
+         wren_a      => TextureRamWE(4),
+         
+         clock_b     => clk1x,
+         clken_b     => TextureReadEna,
+         address_b   => PaletteReadAddr(i),
+         data_b      => 16x"0",
+         wren_b      => '0',
+         q_b         => PaletteReadData(i)
+      );
+      
+   end generate;
+   
    iFBRAM: entity mem.dpram_dif
    generic map 
    ( 
@@ -1265,6 +1295,8 @@ begin
       TextureReadEna          => TextureReadEna,
       TextureAddr             => TextureReadAddr,
       TextureRamData          => TextureReadData,
+      PaletteAddr             => PaletteReadAddr,
+      PaletteRamData          => PaletteReadData,
       
       FBAddr                  => FBReadAddr,
       FBData                  => FBReadData,
@@ -1720,16 +1752,16 @@ begin
                   end if;
                   
                   export_gpu32(11, tracecounts_out(11), export_TexCoord, outfile); tracecounts_out(11) <= tracecounts_out(11) + 1;
-                  --if (settings_otherModes.bilerp0 = '1' and (settings_otherModes.sampleType = '1' or settings_otherModes.enTlut = '1')) then
-                  --   export_gpu32(7, texfetch_count + 0, export_TexFetch0, outfile);
-                  --   export_gpu32(7, texfetch_count + 1, export_TexFetch1, outfile);
-                  --   export_gpu32(7, texfetch_count + 2, export_TexFetch2, outfile);
-                  --   export_gpu32(7, texfetch_count + 3, export_TexFetch3, outfile);
-                  --   texfetch_count := texfetch_count + 4;
-                  --else
-                  --   export_gpu32(7, texfetch_count, export_TexFetch0, outfile);
-                  --   texfetch_count := texfetch_count + 1;
-                  --end if;
+                  if (settings_otherModes.bilerp0 = '1' and (settings_otherModes.sampleType = '1' or settings_otherModes.enTlut = '1')) then
+                     export_gpu32(7, texfetch_count + 0, export_TexFetch0, outfile);
+                     export_gpu32(7, texfetch_count + 1, export_TexFetch1, outfile);
+                     export_gpu32(7, texfetch_count + 2, export_TexFetch2, outfile);
+                     export_gpu32(7, texfetch_count + 3, export_TexFetch3, outfile);
+                     texfetch_count := texfetch_count + 4;
+                  else
+                     export_gpu32(7, texfetch_count, export_TexFetch0, outfile);
+                     texfetch_count := texfetch_count + 1;
+                  end if;
                   --
                   --if (export_texmode = TEXMODE_UNFILTERED) then                 
                   --   export_gpu32(13, texcolor_count, export_TexColor0, outfile); 
