@@ -17,6 +17,7 @@ entity PI is
       SAVETYPE             : in  std_logic_vector(2 downto 0); -- 0 -> None, 1 -> EEPROM4, 2 -> EEPROM16, 3 -> SRAM32, 4 -> SRAM96, 5 -> Flash
       fastDecay            : in  std_logic;
       cartAvailable        : in  std_logic;
+      cartSize             : in  unsigned(26 downto 0);
       
       irq_out              : out std_logic := '0';
       
@@ -368,7 +369,7 @@ begin
                         else 
                            bus_cart_done <= '1';
                         end if;
-                     elsif (bus_cart_addr(28 downto 0) < 16#13FF0000# and cartAvailable = '1') then -- game rom
+                     elsif (bus_cart_addr(28 downto 0) < (16#10000000# + to_integer(cartSize)) and cartAvailable = '1') then -- game rom
                         if (PI_STATUS_IObusy = '1') then
                            PI_STATUS_IObusy  <= '0';
                            bus_cart_dataRead <= writtenData;
@@ -576,7 +577,7 @@ begin
                         if (SAVETYPE = "101") then
                            dma_isflashread <= '1';
                         end if;  
-                     elsif (PI_CART_ADDR(28 downto 0) < 16#13FF0000#) then -- game rom
+                     elsif (PI_CART_ADDR(28 downto 0) < (16#10000000# + to_integer(cartSize))) then -- game rom
                         sdram_address <= (PI_CART_ADDR(25 downto 1) & '0') + to_unsigned(16#1000000#, 27);
                      else
                         report "Openbus DMA read not implemented" severity failure;
@@ -727,7 +728,7 @@ begin
                         elsif (SAVETYPE = "101") then
                            flash_wrenA <= '1';
                         end if;
-                     elsif (PI_CART_ADDR(28 downto 0) < 16#13FF0000#) then -- game rom
+                     elsif (PI_CART_ADDR(28 downto 0) < (16#10000000# + to_integer(cartSize))) then -- game rom
                         report "Cart DMA write not implemented" severity failure;
                         error_PI      <= '1';
                      else

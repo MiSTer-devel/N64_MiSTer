@@ -993,6 +993,7 @@ begin
       SAVETYPE             => SAVETYPE,
       fastDecay            => is_simu,
       cartAvailable        => cartAvailable,
+      cartSize             => romcopy_size,
 
       irq_out              => irqVector(4),
       
