@@ -8,6 +8,7 @@ package pVI is
       CTRL_TYPE         : unsigned(1 downto 0);
       CTRL_SERRATE      : std_logic;
       isPAL             : std_logic;
+      VI_DIRECTFBMODE   : std_logic;
       fixedBlanks       : std_logic;
       CROPVERTICAL      : unsigned(1 downto 0);
       videoSizeY        : unsigned(9 downto 0);

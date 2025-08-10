@@ -313,6 +313,7 @@ begin
                   videoout_out.g      <= overlay_data(15 downto 8);
                   videoout_out.b      <= overlay_data(23 downto 16);
                elsif (videoout_settings.CTRL_TYPE(1) = '0' or 
+                      videoout_settings.VI_DIRECTFBMODE = '1' or
                       hpos(11 downto 2) < VIDEO_H_START or hpos(11 downto 2) >= VIDEO_H_END or 
                       vpos < VIDEO_V_START or vpos >= VIDEO_V_END) then
                   videoout_out.r      <= (others => '0');
