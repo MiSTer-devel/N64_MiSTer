@@ -99,6 +99,7 @@ entity VI_videoout is
       video_b                          : out std_logic_vector(7 downto 0);
       
       video_blockVIFB                  : in  std_logic;
+      video_FB_en                      : out std_logic;
       video_FB_base                    : out unsigned(31 downto 0);
       video_FB_sizeX                   : out unsigned(9 downto 0);
       video_FB_sizeY                   : out unsigned(9 downto 0);
@@ -205,7 +206,9 @@ architecture arch of VI_videoout is
    signal videoout_readAddr   : unsigned(10 downto 0);
    
    signal VI_DEBLUR_2xscale   : std_logic;
-
+   
+   signal gotFirstFrame       : std_logic := '0';
+   
    -- overlay
    signal overlay_xpos        : unsigned(9 downto 0);
    signal overlay_ypos        : unsigned(8 downto 0);
@@ -238,7 +241,8 @@ begin
    videoout_settings.CTRL_TYPE         <= VI_CTRL_TYPE;
    videoout_settings.CTRL_SERRATE      <= VI_CTRL_SERRATE;
    videoout_settings.isPAL             <= ISPAL;
-   videoout_settings.fixedBlanks       <= FIXEDBLANKS;
+   videoout_settings.VI_DIRECTFBMODE   <= VI_DIRECTFBMODE and gotFirstFrame;
+   videoout_settings.fixedBlanks       <= FIXEDBLANKS or not gotFirstFrame;
    videoout_settings.CROPVERTICAL      <= CROPVERTICAL;
    videoout_settings.videoSizeY        <= VI_V_VIDEO_END - VI_V_VIDEO_START - to_integer(CROPVERTICAL & "0000");
    videoout_settings.VI_V_SYNC         <= VI_V_SYNC;
@@ -256,11 +260,11 @@ begin
       
          VI_WIDTH_adjust <= VI_WIDTH;
          
-         if (VI_CTRL_SERRATE = '1' and VI_DIRECTFBMODE = '1' and VI_WIDTH >= 512 and VI_X_SCALE_FACTOR <= x"200") then
+         if (VI_CTRL_SERRATE = '1' and videoout_settings.VI_DIRECTFBMODE = '1' and VI_WIDTH >= 512 and VI_X_SCALE_FACTOR <= x"200") then
             VI_WIDTH_adjust <= '0' & VI_WIDTH(11 downto 1);
          end if;         
          
-         if (VI_CTRL_SERRATE = '1' and VI_DIRECTFBMODE = '1' and VI_WIDTH >= 1280 and VI_X_SCALE_FACTOR = x"400") then
+         if (VI_CTRL_SERRATE = '1' and videoout_settings.VI_DIRECTFBMODE = '1' and VI_WIDTH >= 1280 and VI_X_SCALE_FACTOR = x"400") then
             VI_WIDTH_adjust <= '0' & VI_WIDTH(11 downto 1);
          end if;
          
@@ -274,9 +278,14 @@ begin
             end if;
          end if;
          
+         if (newFrame = '1') then
+            gotFirstFrame <= '1'; -- Used to activate Fixed Blanks or Direct FB mode
+         end if;
+         
       end if;
    end process;
    
+   video_FB_en    <= videoout_settings.VI_DIRECTFBMODE;
    video_FB_base  <= x"31" & "0" & VIFB_frameLast & "0" & x"00000";
    video_FB_sizeX <= VI_WIDTH_adjust(9 downto 0) when (VI_WIDTH_adjust < line_x_end) else line_x_end;
    video_FB_sizeY <= FetchLineCount(8 downto 0) & '0' when (video_blockVIFB = '1') else FetchLineCount;
@@ -294,7 +303,7 @@ begin
 
       error_linefetch    => error_linefetch,
       
-      VI_DIRECTFBMODE    => VI_DIRECTFBMODE,
+      VI_DIRECTFBMODE    => videoout_settings.VI_DIRECTFBMODE,
                                         
       VI_CTRL_TYPE       => VI_CTRL_TYPE,     
       VI_CTRL_SERRATE    => VI_CTRL_SERRATE,  
@@ -420,7 +429,7 @@ begin
       clk1x              => clk1x,         
       reset              => reset_1x,         
                          
-      VI_DIRECTFBMODE    => VI_DIRECTFBMODE,
+      VI_DIRECTFBMODE    => videoout_settings.VI_DIRECTFBMODE,
                          
       VI_CTRL_TYPE       => VI_CTRL_TYPE,  
       VI_CTRL_AA_MODE    => VI_CTRL_AA_MODE,  

@@ -54,7 +54,9 @@ module emu
 
 	input  [11:0] HDMI_WIDTH,
 	input  [11:0] HDMI_HEIGHT,
-   output        HDMI_FREEZE,
+    output        HDMI_FREEZE,
+	output        HDMI_BLACKOUT,
+	output        HDMI_BOB_DEINT,
 
 `ifdef MISTER_FB
 	// Use framebuffer in DDRAM
@@ -173,6 +175,8 @@ module emu
 );
 
 assign HDMI_FREEZE = 1'b0;
+assign HDMI_BLACKOUT = 0;
+assign HDMI_BOB_DEINT = 0;
 
 assign AUDIO_S   = 1;
 assign AUDIO_MIX = status[8:7];
@@ -189,7 +193,7 @@ assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE, SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS, SDRAM_nRAS, SDRAM_nCS} = 'Z;
 
 assign FB_BASE    = video_FB_base;
-assign FB_EN      = status[105];
+assign FB_EN      = video_FB_en;
 assign FB_FORMAT  = 5'b00110;
 assign FB_WIDTH   = {2'd0, video_FB_sizeX};
 assign FB_HEIGHT  = {2'd0, video_FB_sizeY};
@@ -415,8 +419,12 @@ wire [24:0] mouse;
 
 wire [10:0] ps2_key;
 
+wire        fixed_blanks_off = status[82];
+wire        clean_hdmi = status[105];
+wire        video_FB_en;
+
 wire [127:0] status_in = {status[127:40],ss_slot,status[37:0]};
-wire [15:0] status_menumask = {14'd0, status[105], status[82]};
+wire [15:0] status_menumask = {14'd0, clean_hdmi, fixed_blanks_off};
 
 wire DIRECT_VIDEO;
 
@@ -730,7 +738,8 @@ n64top
    .fpscountOn(status[28]),
    
    .ISPAL(status[79]),
-   .FIXEDBLANKS(~status[82] && ~status[105]),
+   .FIXEDBLANKS(~fixed_blanks_off && ~clean_hdmi),
+   
    .CROPVERTICAL(status[45:44]),
    .VI_BILINEAROFF(status[32]),
    .VI_DEBLUR(status[89]),
@@ -741,7 +750,7 @@ n64top
    .VI_DIVOTOFF(status[36]),
    .VI_NOISEOFF(status[37]),
    .VI_7BITPERCOLOR(~status[104]),
-   .VI_DIRECTFBMODE(status[105]),
+   .VI_DIRECTFBMODE(clean_hdmi),
    
    .CICTYPE(status[68:65]),
    .RAMSIZE8(~status[70]),
@@ -891,14 +900,15 @@ n64top
    .video_g          (VGA_G),
    .video_b          (VGA_B),
    
+   .video_FB_en      (video_FB_en),
    .video_FB_base    (video_FB_base),
    .video_FB_sizeX   (video_FB_sizeX),
    .video_FB_sizeY   (video_FB_sizeY)
 );
 
 assign CLK_VIDEO = clk_vid;
-assign VGA_DE = status[105] ? 1'b0 : ~(HBlank | VBlank);
-assign VGA_F1 = status[105] ? 1'b0 : Interlaced ^ status[1];
+assign VGA_DE = ~(HBlank | VBlank);
+assign VGA_F1 = clean_hdmi ? 1'b0 : Interlaced ^ status[1];
 assign VGA_SL = 0;
 assign VGA_DISABLE = 0;
 
@@ -908,7 +918,7 @@ reg [11:0] ARCoreX = 12'd4;
 reg [11:0] ARCoreY = 12'd3;
    
 always @(posedge clk_1x) begin
-   if (status[82] || status[105]) begin // fixed blanks off
+   if (fixed_blanks_off || clean_hdmi) begin // fixed blanks off
       ARCoreX <= 12'd4;
       ARCoreY <= 12'd3;
    end else begin

@@ -186,6 +186,7 @@ entity n64top is
       video_g                 : out std_logic_vector(7 downto 0);
       video_b                 : out std_logic_vector(7 downto 0);
       
+      video_FB_en             : out std_logic;
       video_FB_base           : out unsigned(31 downto 0);
       video_FB_sizeX          : out unsigned(9 downto 0);
       video_FB_sizeY          : out unsigned(9 downto 0)
@@ -869,6 +870,7 @@ begin
       video_g              => video_g,      
       video_b              => video_b,
       
+      video_FB_en          => video_FB_en,
       video_FB_base        => video_FB_base,
       video_FB_sizeX       => video_FB_sizeX,
       video_FB_sizeY       => video_FB_sizeY,
@@ -991,6 +993,7 @@ begin
       SAVETYPE             => SAVETYPE,
       fastDecay            => is_simu,
       cartAvailable        => cartAvailable,
+      cartSize             => romcopy_size,
 
       irq_out              => irqVector(4),
       
