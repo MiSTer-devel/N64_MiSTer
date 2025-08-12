@@ -51,10 +51,11 @@ module emu
 	output [1:0]  VGA_SL,
 	output        VGA_SCALER, // Force VGA scaler
 	output        VGA_DISABLE, // analog out is off
+	output        HDMI_BOB_DEINT,
 
 	input  [11:0] HDMI_WIDTH,
 	input  [11:0] HDMI_HEIGHT,
-   output        HDMI_FREEZE,
+   output         HDMI_FREEZE,
 
 `ifdef MISTER_FB
 	// Use framebuffer in DDRAM
@@ -173,6 +174,7 @@ module emu
 );
 
 assign HDMI_FREEZE = 1'b0;
+assign HDMI_BOB_DEINT = 0;
 
 assign AUDIO_S   = 1;
 assign AUDIO_MIX = status[8:7];
