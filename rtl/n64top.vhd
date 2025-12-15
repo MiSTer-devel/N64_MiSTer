@@ -400,6 +400,10 @@ architecture arch of n64top is
    signal PADTYPE_latched1       : std_logic_vector(2 downto 0);
    signal PADTYPE_latched2       : std_logic_vector(2 downto 0);
    signal PADTYPE_latched3       : std_logic_vector(2 downto 0);   
+   signal pakPause0              : integer range 0 to 2 := 0;
+   signal pakPause1              : integer range 0 to 2 := 0;
+   signal pakPause2              : integer range 0 to 2 := 0;
+   signal pakPause3              : integer range 0 to 2 := 0;
    
    signal padIndex               : unsigned(1 downto 0);
    signal padIndex0              : unsigned(1 downto 0);
@@ -1048,11 +1052,28 @@ begin
    process(clk1x)
    begin
       if rising_edge(clk1x) then
+         
+         if (second_ena = '1') then
+            if (pakPause0 > 0) then pakPause0 <= pakPause0 - 1; end if;
+            if (pakPause1 > 0) then pakPause1 <= pakPause1 - 1; end if;
+            if (pakPause2 > 0) then pakPause2 <= pakPause2 - 1; end if;
+            if (pakPause3 > 0) then pakPause3 <= pakPause3 - 1; end if;
+         end if;
+      
          if (pif_idle = '1' and pause = '0') then
             PADTYPE_latched0 <= PADTYPE0;
             PADTYPE_latched1 <= PADTYPE1;
             PADTYPE_latched2 <= PADTYPE2;
             PADTYPE_latched3 <= PADTYPE3;
+            -- force pause between rumble and cpak
+            if (pakPause0 > 0) then PADTYPE_latched0 <= "000"; end if;
+            if (pakPause1 > 0) then PADTYPE_latched1 <= "000"; end if;
+            if (pakPause2 > 0) then PADTYPE_latched2 <= "000"; end if;
+            if (pakPause3 > 0) then PADTYPE_latched3 <= "000"; end if;         
+            if (PADTYPE0 = "010" and PADTYPE_latched0 = "011") or (PADTYPE0 = "011" and PADTYPE_latched0 = "010") then PADTYPE_latched0 <= "000"; pakPause0 <= 2; end if;
+            if (PADTYPE1 = "010" and PADTYPE_latched1 = "011") or (PADTYPE1 = "011" and PADTYPE_latched1 = "010") then PADTYPE_latched1 <= "000"; pakPause1 <= 2; end if;
+            if (PADTYPE2 = "010" and PADTYPE_latched2 = "011") or (PADTYPE2 = "011" and PADTYPE_latched2 = "010") then PADTYPE_latched2 <= "000"; pakPause2 <= 2; end if;
+            if (PADTYPE3 = "010" and PADTYPE_latched3 = "011") or (PADTYPE3 = "011" and PADTYPE_latched3 = "010") then PADTYPE_latched3 <= "000"; pakPause3 <= 2; end if;  
          end if;
          
          padIndex0 <= "00";

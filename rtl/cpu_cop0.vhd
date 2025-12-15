@@ -640,7 +640,7 @@ begin
             
             -- linked address
             if (stall = 0 and executeSetLL = '1') then 
-               if (executeLLfromTLB = '1') then
+               if (executeLLfromTLB = '1' or bit64mode = '1') then
                   COP0_17_LOADLINKEDADDRESS <= 36x"0" & executeLLAddr(31 downto 4);
                else
                   COP0_17_LOADLINKEDADDRESS <= 39x"0" & executeLLAddr(28 downto 4);

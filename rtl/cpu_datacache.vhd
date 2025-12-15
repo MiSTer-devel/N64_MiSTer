@@ -451,7 +451,7 @@ begin
                               tag_data_cmd   <= "01" & tag_compare(19 downto 0);
                            end if;
                            
-                        when others => null;
+                        when others => state <= IDLE;
                      end case;
                      
                   end if;

@@ -475,6 +475,7 @@ architecture arch of cpu is
    signal execute_TLBWI                : std_logic := '0';
    signal execute_TLBWR                : std_logic := '0';
    signal execute_TLBP                 : std_logic := '0';
+   signal exceptionAllowDelay          : std_logic := '0';
 
    signal hiloWait                     : integer range 0 to 69;
    
@@ -531,6 +532,11 @@ architecture arch of cpu is
    signal bit64region                  : std_logic;
    signal irqTrigger                   : std_logic;
    signal TLBDone                      : std_logic;
+   
+   signal region_TLBmapped             : std_logic;
+   signal region_cached                : std_logic;
+   signal region_full32                : std_logic;
+   signal region_unused                : std_logic;
    
    signal TLB_ss_load                  : std_logic;
    signal TLB_instrMapped              : std_logic;
@@ -738,24 +744,24 @@ begin
                end if;
             elsif (mem1_request = '1' or instrcache_request = '1') then
                writefifo_wr                 <= '1';
-               writefifo_Din( 95 downto 64) <= std_logic_vector(mem1_address);
+               writefifo_Din( 95 downto 64) <= "000" & std_logic_vector(mem1_address(28 downto 0));
                writefifo_Din(104)           <= '0';
                writefifo_Din(105)           <= '1';
                writefifo_Din(106)           <= '0';
                writefifo_Din(107)           <= instrcache_request;
                if (instrcache_request = '1') then
-                  writefifo_Din( 95 downto 64) <= std_logic_vector(mem1_address(31 downto 5)) & "00000";
+                  writefifo_Din( 95 downto 64) <= "000" & std_logic_vector(mem1_address(28 downto 5)) & "00000";
                end if;  
             elsif (mem1_request_latched = '1') then
                mem1_request_latched         <= '0';
                writefifo_wr                 <= '1';
-               writefifo_Din( 95 downto 64) <= std_logic_vector(mem1_address);
+               writefifo_Din( 95 downto 64) <= "000" & std_logic_vector(mem1_address(28 downto 0));
                writefifo_Din(104)           <= '0';
                writefifo_Din(105)           <= '1';
                writefifo_Din(106)           <= '0';
                writefifo_Din(107)           <= mem1_cache_latched;
                if (mem1_cache_latched = '1') then
-                  writefifo_Din( 95 downto 64) <= std_logic_vector(mem1_address(31 downto 5)) & "00000";
+                  writefifo_Din( 95 downto 64) <= "000" & std_logic_vector(mem1_address(28 downto 5)) & "00000";
                end if;  
             end if;
             
@@ -1055,9 +1061,11 @@ begin
    FetchAddrTLBMuxed1 <= TLB_instrAddrOutFound when (TLB_instrMapped = '1') else FetchAddr1(31 downto 0);
    FetchAddrTLBMuxed2 <= TLB_instrAddrOutFound when (TLB_instrMapped = '1') else FetchAddr2(31 downto 0);
 
-   TLB_instrMapped <= '1' when (privilegeMode = "00" and (FetchAddr(31 downto 29) < 4 or FetchAddr(31 downto 29) = 6 or FetchAddr(31 downto 29) = 7)) else
-                      '1' when (privilegeMode = "01" and (FetchAddr(31 downto 29) < 4 or FetchAddr(31 downto 29) = 6)) else
-                      '1' when (privilegeMode = "10" and (FetchAddr(31 downto 29) < 4)) else
+   -- running from 64 bit sections currently not fully supported to not screw up FPGA route timing
+   TLB_instrMapped <= '1' when (bit64region = '1' and FetchAddr(63 downto 60) < 8) else
+                      '1' when (bit64region = '0' and privilegeMode = "00" and (FetchAddr(31 downto 29) < 4 or FetchAddr(31 downto 29) = 6 or FetchAddr(31 downto 29) = 7)) else
+                      '1' when (bit64region = '0' and privilegeMode = "01" and (FetchAddr(31 downto 29) < 4 or FetchAddr(31 downto 29) = 6)) else
+                      '1' when (bit64region = '0' and privilegeMode = "10" and (FetchAddr(31 downto 29) < 4)) else
                       '0';
                       
    TLB_instrReq <= '1' when (TLB_instrMapped = '1' and (stall = 0 or TLB_ss_load = '1')) else '0';
@@ -2204,10 +2212,14 @@ begin
    EXEExceptionMem <= '1' when (decodeExcType = EXCTYPE_ADDRH   and calcMemAddr(0) = '1') else
                       '1' when (decodeExcType = EXCTYPE_ADDRW   and calcMemAddr(1 downto 0) > 0) else
                       '1' when (decodeExcType = EXCTYPE_ADDRD   and calcMemAddr(2 downto 0) > 0) else
+                      -- 2 below should use calcMemAddr to allow inter cycle wraparound, but we can't do that due to timing closure
+                      '1' when (bit64region = '0' and value1(63 downto 32) = x"FFFFFFFF" and value1(31) = '0') else 
+                      '1' when (bit64region = '0' and value1(63 downto 32) = x"00000000" and value1(31) = '1') else
+                      '1' when (region_unused = '1') else
                       '0';
    
    exceptionNew3  <= '0' when (exception = '1' or stall > 0 or executeIgnoreNext = '1' or decodeNew = '0') else
-                     '1' when (EXEExceptionMem = '1') else
+                     '1' when (EXEExceptionMem = '1' and (decodeMemReadEnable = '1' or decodeMemWriteEnable = '1')) else
                      '1' when (decodeExcType = EXCTYPE_DECODE) else
                      '1' when (decodeExcType = EXCTYPE_PC      and value1(1 downto 0) > 0) else
                      '1' when (decodeExcType = EXCTYPE_ADD     and (((calcResult_add(31) xor value1(31)) and (calcResult_add(31) xor value2(31))) = '1')) else
@@ -2239,11 +2251,72 @@ begin
    EXECOP0WriteValue    <= unsigned(resize(signed(value2(31 downto 0)), 64)) when (decodeCOP64 = '0') else
                            value2;
 
-   -- 64bit mode?
-   EXETLBMapped <= '1' when (privilegeMode = "00" and (calcMemAddr(31 downto 29) < 4 or calcMemAddr(31 downto 29) = 6 or calcMemAddr(31 downto 29) = 7)) else
-                   '1' when (privilegeMode = "01" and (calcMemAddr(31 downto 29) < 4 or calcMemAddr(31 downto 29) = 6)) else
-                   '1' when (privilegeMode = "10" and (calcMemAddr(31 downto 29) < 4)) else
-                   '0';
+   -- region check
+   -- we optimize the 64bit region to use only the base address for timing purposes. 
+   -- If base+immidiate switches the region-> bad luck
+   process (value1, calcMemAddr)
+   begin
+   
+      region_TLBmapped <= '0';
+      region_cached    <= '0';
+      region_full32    <= '0';
+      region_unused    <= '0';
+   
+      if (bit64region = '1') then
+         if (privilegeMode = "00") then
+            if    (value1 <= x"000000ffffffffff") then region_TLBmapped <= '1';                   
+            elsif (value1 <= x"3fffffffffffffff") then region_unused <= '1';                      
+            elsif (value1 <= x"400000ffffffffff") then region_TLBmapped <= '1';                   
+            elsif (value1 <= x"7fffffffffffffff") then region_unused <= '1';                      
+            elsif (value1 <= x"80000000ffffffff") then region_cached <= '1'; region_full32 <= '1';
+            elsif (value1 <= x"87ffffffffffffff") then region_unused <= '1';                      
+            elsif (value1 <= x"88000000ffffffff") then region_cached <= '1'; region_full32 <= '1';
+            elsif (value1 <= x"8fffffffffffffff") then region_unused <= '1';                      
+            elsif (value1 <= x"90000000ffffffff") then region_full32 <= '1';                      
+            elsif (value1 <= x"97ffffffffffffff") then region_unused <= '1';                      
+            elsif (value1 <= x"98000000ffffffff") then region_cached <= '1'; region_full32 <= '1';
+            elsif (value1 <= x"9fffffffffffffff") then region_unused <= '1';                      
+            elsif (value1 <= x"a0000000ffffffff") then region_cached <= '1'; region_full32 <= '1';
+            elsif (value1 <= x"a7ffffffffffffff") then region_unused <= '1';                      
+            elsif (value1 <= x"a8000000ffffffff") then region_cached <= '1'; region_full32 <= '1';
+            elsif (value1 <= x"afffffffffffffff") then region_unused <= '1';                      
+            elsif (value1 <= x"b0000000ffffffff") then region_cached <= '1'; region_full32 <= '1';
+            elsif (value1 <= x"b7ffffffffffffff") then region_unused <= '1';                      
+            elsif (value1 <= x"b8000000ffffffff") then region_cached <= '1'; region_full32 <= '1';
+            elsif (value1 <= x"bfffffffffffffff") then region_unused <= '1';                      
+            elsif (value1 <= x"c00000ff7fffffff") then region_TLBmapped <= '1';                   
+            elsif (value1 <= x"ffffffff7fffffff") then region_unused <= '1';                      
+            elsif (value1 <= x"ffffffff9fffffff") then region_cached <= '1';                      
+            elsif (value1 <= x"ffffffffbfffffff") then null;                                           
+            elsif (value1 <= x"ffffffffdfffffff") then region_TLBmapped <= '1';                   
+            else region_TLBmapped <= '1'; 
+            end if;
+         elsif (privilegeMode = "01") then
+            if    (value1 <= x"000000ffffffffff") then region_TLBmapped <= '1';
+            elsif (value1 <= x"3fffffffffffffff") then region_unused <= '1';   
+            elsif (value1 <= x"400000ffffffffff") then region_TLBmapped <= '1';
+            elsif (value1 <= x"ffffffffbfffffff") then region_unused <= '1';   
+            elsif (value1 <= x"ffffffffdfffffff") then region_TLBmapped <= '1';
+            else region_unused <= '1';
+            end if;
+         elsif (privilegeMode = "10") then
+            if (value1 <= x"FFFFFFFFFF") then region_TLBmapped <= '1'; end if;
+         end if;
+      else
+         if (privilegeMode = "00") then
+            if (calcMemAddr(31 downto 29) < 4 or calcMemAddr(31 downto 29) = 6 or calcMemAddr(31 downto 29) = 7) then region_TLBmapped <= '1'; end if;
+            if (calcMemAddr(31 downto 29) = 4) then region_cached <= '1'; end if;
+         elsif (privilegeMode = "01") then
+            if (calcMemAddr(31 downto 29) < 4 or calcMemAddr(31 downto 29) = 6) then region_TLBmapped <= '1'; end if;
+            if (calcMemAddr(31 downto 29) = 4 or calcMemAddr(31 downto 29) = 5 or calcMemAddr(31 downto 29) = 7) then region_unused <= '1'; end if;
+         elsif (privilegeMode = "10") then
+            if (calcMemAddr(31 downto 29) < 4) then region_TLBmapped <= '1'; end if;
+            if (calcMemAddr(31 downto 29) > 3 and calcMemAddr(31 downto 29) < 8) then region_unused <= '1'; end if;
+         end if;
+      end if;
+   end process;
+   
+   EXETLBMapped <= region_TLBmapped;
    
    EXETLBDataAccess <= decodeMemReadEnable or decodeMemWriteEnable or decodeCacheTLBTranslate or decodeMemWriteLL when (EXETLBMapped = '1' and exception = '0' and stall = 0 and executeIgnoreNext = '0' and decodeNew = '1') else '0';
 
@@ -2373,6 +2446,7 @@ begin
             executeSetLL                  <= '0';
             llBit                         <= '0';
             hiloWait                      <= 0;
+            exceptionAllowDelay           <= '0';
             
             hi                            <= unsigned(ss_in(3)); -- (others => '0');
             lo                            <= unsigned(ss_in(4)); -- (others => '0');
@@ -2488,16 +2562,17 @@ begin
                executeLLfromTLB        <= EXETLBDataAccess;
                if (EXETLBDataAccess = '1') then
                   executeMemAddress <= TLB_dataAddrOutFound;
+               elsif (region_full32 = '1') then
+                  executeMemAddress <= calcMemAddr(31 downto 0);
                else
-                  executeMemAddress <= "000" & calcMemAddr(28 downto 0); -- only for 32bit addressing mode!
+                  executeMemAddress <= "000" & calcMemAddr(28 downto 0);
                end if;
                
                executeCOP0WriteValue   <= EXECOP0WriteValue; 
 
                executeBranchdelaySlot  <= EXEBranchdelaySlot;                
             
-               if (exception = '1') then
-                                                
+               if (exception = '1') then                          
                   stall3                        <= '0';
                   executeNew                    <= '0';
                   executeIgnoreNext             <= '0';
@@ -2506,10 +2581,12 @@ begin
                   executeMemReadEnable          <= '0';
                   executeMemWriteEnable         <= '0';
                   executeCOP0WriteEnable        <= '0';
+               end if;
                   
-               elsif (decodeNew = '1') then     
+               if (decodeNew = '1' and (exception = '0' or exceptionAllowDelay = '1')) then     
                
                   executeIgnoreNext             <= EXEIgnoreNext;
+                  exceptionAllowDelay           <= '0';
                    
                   if (executeIgnoreNext = '1') then
                   
@@ -2564,6 +2641,10 @@ begin
 
                      executeSetLL                  <= decodeSetLL;
 
+                     if (decodeExcType = EXCTYPE_PC and value1(1 downto 0) > 0) then
+                        exceptionAllowDelay <= '1';
+                     end if;
+
                      if (decodeERET = '1') then
                         llBit <= '0';
                      elsif (EXEExceptionMem = '0') then
@@ -2580,7 +2661,7 @@ begin
                            executeMemUseCache <= DATACACHETLBON_intern;
                         end if;
                      else
-                        if (to_integer(unsigned(calcMemAddr(31 downto 29))) = 4 and privilegeMode = "00" and DATACACHEON_intern = '1') then
+                        if (region_cached = '1' and DATACACHEON_intern = '1') then
                            executeMemUseCache <= '1';
                         end if;
                      end if;
