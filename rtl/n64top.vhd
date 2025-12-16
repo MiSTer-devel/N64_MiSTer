@@ -342,7 +342,10 @@ architecture arch of n64top is
    signal bus_MI_read            : std_logic;
    signal bus_MI_write           : std_logic;
    signal bus_MI_dataRead        : std_logic_vector(31 downto 0);    
-   signal bus_MI_done            : std_logic;   
+   signal bus_MI_done            : std_logic; 
+   signal clearRepeat            : std_logic;
+   signal repeatCount            : unsigned(6 downto 0);
+   signal repeatOn               : std_logic;
    
    signal bus_VI_addr            : unsigned(19 downto 0); 
    signal bus_VI_dataWrite       : std_logic_vector(31 downto 0);
@@ -791,6 +794,10 @@ begin
 
       irq_in               => irqVector,
       irq_out              => irqRequest,
+      
+      clearRepeat          => clearRepeat,
+      repeatCount          => repeatCount,
+      repeatOn             => repeatOn,
                            
       bus_addr             => bus_MI_addr,     
       bus_dataWrite        => bus_MI_dataWrite,
@@ -1458,12 +1465,15 @@ begin
       bus_RDP_dataRead     => bus_RDP_dataRead,       
       bus_RDP_done         => bus_RDP_done,           
       
+      clearRepeat          => clearRepeat,
       bus_MI_addr          => bus_MI_addr,     
       bus_MI_dataWrite     => bus_MI_dataWrite,
       bus_MI_read          => bus_MI_read,     
       bus_MI_write         => bus_MI_write,    
       bus_MI_dataRead      => bus_MI_dataRead,       
-      bus_MI_done          => bus_MI_done,        
+      bus_MI_done          => bus_MI_done,     
+      repeatCount          => repeatCount,
+      repeatOn             => repeatOn,      
       
       bus_VI_addr          => bus_VI_addr,     
       bus_VI_dataWrite     => bus_VI_dataWrite,

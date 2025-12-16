@@ -14,6 +14,10 @@ entity MI is
       irq_in           : in  std_logic_vector(5 downto 0);
       irq_out          : out std_logic := '0';
       
+      clearRepeat      : in  std_logic;
+      repeatCount      : out unsigned(6 downto 0);
+      repeatOn         : out std_logic;
+      
       bus_addr         : in  unsigned(19 downto 0); 
       bus_dataWrite    : in  std_logic_vector(31 downto 0);
       bus_read         : in  std_logic;
@@ -32,10 +36,10 @@ end entity;
 
 architecture arch of MI is
 
-   signal MI_MODE_initLength   : std_logic_vector(6 downto 0); -- 0x04300000 
-   signal MI_MODE_initMode     : std_logic;
-   signal MI_MODE_ebusTestMode : std_logic;
-   signal MI_MODE_RDRAMreqMode : std_logic;
+   signal MI_MODE_REPEATCOUNT  : std_logic_vector(6 downto 0); -- 0x04300000 
+   signal MI_MODE_REPEAT       : std_logic;
+   signal MI_MODE_EBUS         : std_logic;
+   signal MI_MODE_UPPER        : std_logic;
    signal MI_INTR_DP           : std_logic; -- special handling of DP irq, because it is cleared here in MI
    signal MI_INTR_MASK         : std_logic_vector(5 downto 0); -- 0x0430000C
    
@@ -48,6 +52,9 @@ begin
    irq_out <= '1' when ((irq_in and MI_INTR_MASK) /= "000000") else 
               '1' when (MI_INTR_DP = '1' and MI_INTR_MASK(5) = '1') else
               '0';
+              
+   repeatCount <= unsigned(MI_MODE_REPEATCOUNT);
+   repeatOn    <= MI_MODE_REPEAT;
 
    process (clk1x)
    begin
@@ -57,10 +64,10 @@ begin
             
             bus_done             <= '0';
 
-            MI_MODE_initLength   <= ss_in(6 downto 0);
-            MI_MODE_initMode     <= ss_in(7);
-            MI_MODE_ebusTestMode <= ss_in(8);
-            MI_MODE_RDRAMreqMode <= ss_in(9);
+            MI_MODE_REPEATCOUNT  <= ss_in(6 downto 0);
+            MI_MODE_REPEAT       <= ss_in(7);
+            MI_MODE_EBUS         <= ss_in(8);
+            MI_MODE_UPPER        <= ss_in(9);
             MI_INTR_DP           <= ss_in(15);
             MI_INTR_MASK         <= ss_in(21 downto 16);
             
@@ -74,10 +81,10 @@ begin
                bus_done <= '1';
                case (bus_addr(19 downto 2) & "00") is   
                   when x"00000" => 
-                     bus_dataRead(6 downto 0) <= MI_MODE_initLength;   
-                     bus_dataRead(7)          <= MI_MODE_initMode;   
-                     bus_dataRead(8)          <= MI_MODE_ebusTestMode;   
-                     bus_dataRead(9)          <= MI_MODE_RDRAMreqMode;   
+                     bus_dataRead(6 downto 0) <= MI_MODE_REPEATCOUNT;   
+                     bus_dataRead(7)          <= MI_MODE_REPEAT;   
+                     bus_dataRead(8)          <= MI_MODE_EBUS;   
+                     bus_dataRead(9)          <= MI_MODE_UPPER;   
                   
                   when x"00004" => bus_dataRead <= x"02020102"; -- 0x04300004 (R): [7:0] io [15:8] rac [23:16] rdp [31:24] rsp       
                   when x"00008" => -- 0x04300008 (R): [0] SP intr [1] SI intr [2] AI intr [3] VI intr [4] PI intr [5] DP intr
@@ -95,14 +102,14 @@ begin
                
                case (bus_addr(19 downto 2) & "00") is   
                   when x"00000" =>
-                     MI_MODE_initLength   <= bus_dataWrite(6 downto 0); 
-                     if (bus_dataWrite( 7) = '1') then MI_MODE_initMode <= '0'; end if;
-                     if (bus_dataWrite( 8) = '1') then MI_MODE_initMode <= '1'; end if;
-                     if (bus_dataWrite( 9) = '1') then MI_MODE_ebusTestMode <= '0'; end if;
-                     if (bus_dataWrite(10) = '1') then MI_MODE_ebusTestMode <= '1'; end if;
+                     MI_MODE_REPEATCOUNT   <= bus_dataWrite(6 downto 0); 
+                     if (bus_dataWrite( 7) = '1') then MI_MODE_REPEAT <= '0'; end if;
+                     if (bus_dataWrite( 8) = '1') then MI_MODE_REPEAT <= '1'; end if;
+                     if (bus_dataWrite( 9) = '1') then MI_MODE_EBUS <= '0'; end if;
+                     if (bus_dataWrite(10) = '1') then MI_MODE_EBUS <= '1'; end if;
                      if (bus_dataWrite(11) = '1') then MI_INTR_DP <= '0'; end if;
-                     if (bus_dataWrite(12) = '1') then MI_MODE_RDRAMreqMode <= '0'; end if;
-                     if (bus_dataWrite(13) = '1') then MI_MODE_RDRAMreqMode <= '1'; end if;
+                     if (bus_dataWrite(12) = '1') then MI_MODE_UPPER <= '0'; end if;
+                     if (bus_dataWrite(13) = '1') then MI_MODE_UPPER <= '1'; end if;
                   
                   when x"0000C" => 
                      if (bus_dataWrite( 0) = '1') then MI_INTR_MASK(0) <= '0'; end if;
@@ -121,6 +128,10 @@ begin
                   when others   => null;                  
                end case;
                
+            end if;
+            
+            if (clearRepeat = '1') then
+               MI_MODE_REPEAT <= '0';
             end if;
             
             if (irq_in(5) = '1') then

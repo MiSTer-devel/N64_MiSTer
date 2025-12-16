@@ -57,12 +57,15 @@ entity memorymux is
       bus_RDP_dataRead     : in  std_logic_vector(31 downto 0);
       bus_RDP_done         : in  std_logic;      
       
+      clearRepeat          : out std_logic := '0';
       bus_MI_addr          : out unsigned(19 downto 0) := (others => '0'); 
       bus_MI_dataWrite     : out std_logic_vector(31 downto 0);
       bus_MI_read          : out std_logic;
       bus_MI_write         : out std_logic;
       bus_MI_dataRead      : in  std_logic_vector(31 downto 0);
-      bus_MI_done          : in  std_logic;      
+      bus_MI_done          : in  std_logic;    
+      repeatCount          : in  unsigned(6 downto 0);
+      repeatOn             : in  std_logic;
       
       bus_VI_addr          : out unsigned(19 downto 0) := (others => '0'); 
       bus_VI_dataWrite     : out std_logic_vector(31 downto 0);
@@ -122,7 +125,8 @@ architecture arch of memorymux is
       IDLE,
       WAITSLOW,
       WAITBUS,
-      WAITRAM
+      WAITRAM,
+      REPEATWRITE
    );
    signal state                  : tState := IDLE;
    
@@ -132,6 +136,10 @@ architecture arch of memorymux is
    signal last_addr      : unsigned(31 downto 0); 
    
    signal bus_slow       : integer range 0 to 4095;
+   
+   signal repeat_first   : std_logic := '0';
+   signal repeat_count   : integer range -8 to 128 := 0;
+   signal repeat_skip    : integer range 0 to 7 := 0;
 
 begin 
 
@@ -268,12 +276,14 @@ begin
                bus_SI_done or bus_PIcart_done or bus_PIF_done;
 
    process (clk1x)
+      variable offset    : unsigned(3 downto 0);
    begin
       if rising_edge(clk1x) then
       
          error          <= '0';
          mem_done       <= '0';
          rdram_request  <= '0';
+         clearRepeat    <= '0';
          
          if (bus_slow > 0) then
             bus_slow <= bus_slow - 1;
@@ -313,7 +323,23 @@ begin
                         if (mem_rnw = '1') then
                            bus_slow <= 15;
                         else
-                           bus_slow <= 6;
+                           bus_slow    <= 6;
+                           clearRepeat <= '1';
+                           if (repeatOn = '1') then
+                              state         <= REPEATWRITE;
+                              rdram_request <= '0';
+                              repeat_first  <= '1';
+                              repeat_count  <= to_integer(repeatCount) + 1;
+                              offset := '0' & mem_address(2 downto 0);
+                              if (mem_writeMask = "00000010") then offset := offset + 1; end if;
+                              if (mem_writeMask = "00000100") then offset := offset + 2; end if;
+                              if (mem_writeMask = "00001000") then offset := offset + 3; end if;
+                              if (mem_writeMask = "00001100") then offset := offset + 2; end if;
+                              if (mem_req64 = '0') then
+                                 rdram_dataWrite <= mem_dataWrite(31 downto 0) & mem_dataWrite(31 downto 0);
+                              end if;
+                              repeat_skip <= to_integer(offset(2 downto 0));
+                           end if;
                         end if;                     
                         
                          
@@ -322,7 +348,8 @@ begin
                         if (mem_rnw = '1') then
                            bus_slow <= 15;
                         else
-                           bus_slow <= 3;
+                           bus_slow    <= 3;
+                           clearRepeat <= '1';
                         end if;                     
                         
                      elsif (mem_address >= 16#04000000# and mem_address < 16#04040000#) then -- RSP RAMs
@@ -479,8 +506,39 @@ begin
                         when others => null;
                      end case;
                   end if;
-                 
-            
+                  
+               when REPEATWRITE =>
+                  if (rdram_done = '1' or repeat_first = '1') then
+                     repeat_first <= '0';
+                     if (repeat_count > 0) then
+                        repeat_count    <= repeat_count - 8;
+                        rdram_request   <= '1';
+                        rdram_writeMask <= (others => '0');
+                        if (repeat_count > 0) then rdram_writeMask(0) <= '1'; end if;
+                        if (repeat_count > 1) then rdram_writeMask(1) <= '1'; end if;
+                        if (repeat_count > 2) then rdram_writeMask(2) <= '1'; end if;
+                        if (repeat_count > 3) then rdram_writeMask(3) <= '1'; end if;
+                        if (repeat_count > 4) then rdram_writeMask(4) <= '1'; end if;
+                        if (repeat_count > 5) then rdram_writeMask(5) <= '1'; end if;
+                        if (repeat_count > 6) then rdram_writeMask(6) <= '1'; end if;
+                        if (repeat_count > 7) then rdram_writeMask(7) <= '1'; end if;
+                        if (repeat_first = '1') then
+                           if (repeat_skip > 0) then rdram_writeMask(0 downto 0) <= (others => '0'); end if;
+                           if (repeat_skip > 1) then rdram_writeMask(1 downto 0) <= (others => '0'); end if;
+                           if (repeat_skip > 2) then rdram_writeMask(2 downto 0) <= (others => '0'); end if;
+                           if (repeat_skip > 3) then rdram_writeMask(3 downto 0) <= (others => '0'); end if;
+                           if (repeat_skip > 4) then rdram_writeMask(4 downto 0) <= (others => '0'); end if;
+                           if (repeat_skip > 5) then rdram_writeMask(5 downto 0) <= (others => '0'); end if;
+                           if (repeat_skip > 6) then rdram_writeMask(6 downto 0) <= (others => '0'); end if;
+                        else
+                           rdram_address(10 downto 0) <= rdram_address(10 downto 0) + 8;
+                        end if;
+                     else
+                        state <= IDLE;
+                        mem_done <= '1';
+                     end if;
+                  end if;
+                     
             end case;
 
          end if;
