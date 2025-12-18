@@ -411,6 +411,7 @@ begin
                            sdram_request    <= '1';
                            sdram_rnw        <= '0';
                            sdram_dataWrite  <= byteswap32(bus_cart_dataWrite);
+                           sdram_writeMask  <= "1111";
                            if (SAVETYPE = "011") then
                               sdram_address <= (11x"0" & bus_cart_addr(14 downto 2) & "00") + to_unsigned(16#400000#, 27);
                            else

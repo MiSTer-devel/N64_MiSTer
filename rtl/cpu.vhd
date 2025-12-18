@@ -2254,7 +2254,7 @@ begin
    -- region check
    -- we optimize the 64bit region to use only the base address for timing purposes. 
    -- If base+immidiate switches the region-> bad luck
-   process (value1, calcMemAddr)
+   process (value1, calcMemAddr, privilegeMode, bit64region)
    begin
    
       region_TLBmapped <= '0';
