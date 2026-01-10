@@ -78,9 +78,6 @@ architecture arch of vi_videoout_async is
                   
    signal hpos_min               : integer range 0 to 1023;
    signal hpos_max               : integer range 0 to 1023;
-   
-   signal v_start_last           : unsigned(8 downto 0) := (others => '0');
-   signal yInterlaceOffset       : integer range 0 to 1;
             
    -- timing            
    signal vpos_half              : unsigned(9 downto 0) := (others => '0');
@@ -162,7 +159,7 @@ begin
    VIDEO_H_START <= videoout_settings.VI_H_VIDEO_START + OFFSET_X;
    VIDEO_H_END   <= videoout_settings.VI_H_VIDEO_END + OFFSET_X;
    
-   vpos_min <= to_integer(VIDEO_V_START) when (videoout_settings.fixedBlanks = '0') else
+   vpos_min <= to_integer(VIDEO_V_START) when (videoout_settings.fixedBlanks = '0' and videoout_settings.CTRL_SERRATE = '0') else
                22 + OFFSET_Y when (videoout_settings.isPAL = '1' and videoout_settings.CROPVERTICAL = "00") else
                30 + OFFSET_Y when (videoout_settings.isPAL = '1' and videoout_settings.CROPVERTICAL = "01") else
                34 + OFFSET_Y when (videoout_settings.isPAL = '1' and videoout_settings.CROPVERTICAL = "10") else
@@ -170,7 +167,7 @@ begin
                25 + OFFSET_Y when (videoout_settings.isPAL = '0' and videoout_settings.CROPVERTICAL = "01") else
                29 + OFFSET_Y;-- when (videoout_settings.isPAL = '0' and videoout_settings.CROPVERTICAL = "10")
                
-   vpos_max <= to_integer(VIDEO_V_END) when (videoout_settings.fixedBlanks = '0') else
+   vpos_max <= to_integer(VIDEO_V_END) when (videoout_settings.fixedBlanks = '0' and videoout_settings.CTRL_SERRATE = '0') else
                310 + OFFSET_Y when (videoout_settings.isPAL = '1' and videoout_settings.CROPVERTICAL = "00") else
                302 + OFFSET_Y when (videoout_settings.isPAL = '1' and videoout_settings.CROPVERTICAL = "01") else
                298 + OFFSET_Y when (videoout_settings.isPAL = '1' and videoout_settings.CROPVERTICAL = "10") else
@@ -231,14 +228,9 @@ begin
             -- timing blanks
             if (hpos = 0) then
                videoout_out.vblank <= '0';
-               if (vpos < (vpos_min + yInterlaceOffset) or vpos >= (vpos_max + yInterlaceOffset)) then 
+               if (vpos < vpos_min or vpos >= vpos_max) then 
                   videoout_out.vblank <= '1'; 
                end if;
-            end if;
-            
-            yInterlaceOffset <= 0;
-            if (videoout_settings.fixedBlanks = '1' and videoout_settings.CTRL_SERRATE = '1' and videoout_settings.VI_V_VIDEO_START(9 downto 1) > v_start_last) then
-               yInterlaceOffset <= 1;
             end if;
                
             videoout_out.hblank <= '0';
@@ -260,7 +252,6 @@ begin
                   vpos_half          <= (others => '0');
                   vpos               <= (others => '0');
                   clkdiv             <= (others => '0');
-                  v_start_last       <= videoout_settings.VI_V_VIDEO_START(9 downto 1);
                   if (videoout_settings.CTRL_SERRATE = '1') then 
                      videoout_reports.interlacedDisplayField <= not videoout_reports.interlacedDisplayField;
                   else 
@@ -340,7 +331,7 @@ begin
    overlay_ypos <= lineIn;
    
    -- timing generation reading
-   videoout_out.interlace      <= videoout_reports.interlacedDisplayField;    
+   videoout_out.interlace      <= not videoout_reports.interlacedDisplayField when (videoout_settings.CTRL_SERRATE = '1') else '0';    
    
 --##############################################################
 --############################### export

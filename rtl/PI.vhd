@@ -581,7 +581,7 @@ begin
                      elsif (PI_CART_ADDR(28 downto 0) < (16#10000000# + to_integer(cartSize))) then -- game rom
                         sdram_address <= (PI_CART_ADDR(25 downto 1) & '0') + to_unsigned(16#1000000#, 27);
                      else
-                        report "Openbus DMA read not implemented" severity failure;
+                        --report "Openbus DMA read not implemented" severity failure;
                         error_PI      <= '1';
                      end if;
                   elsif (PIfifo_nearfull = '0') then
