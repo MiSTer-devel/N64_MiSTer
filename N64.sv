@@ -309,7 +309,7 @@ parameter CONF_STR = {
 	//"RH,Save state (Alt-F1);",
 	//"RI,Restore state (F1);",
 	"-;",
-   "O[51:49],Pad 1 Type,N64Pad,None,ControllerPak,RumblePak,SNAC,TransferPak;",
+   "O[51:49],Pad 1 Type,N64Pad,None,ControllerPak,RumblePak,SNAC,TransferPak,Keyboard;",
    "O[54:52],Pad 2 Type,N64Pad,None,ControllerPak,RumblePak,SNAC;",
    "O[57:55],Pad 3 Type,N64Pad,None,ControllerPak,RumblePak,SNAC;",
    "O[60:58],Pad 4 Type,N64Pad,None,ControllerPak,RumblePak,SNAC;",
@@ -418,6 +418,8 @@ wire [15:0] joystick_analog_l3;
 wire [24:0] mouse;
 
 wire [10:0] ps2_key;
+wire [2:0]  ps2_kbd_led_status;
+wire [2:0]  ps2_kbd_led_use = 3'b011;
 
 wire        fixed_blanks_off = status[82];
 wire        clean_hdmi = status[105];
@@ -474,6 +476,8 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 	.joystick_2(joy3),
 	.joystick_3(joy4),
 	.ps2_key(ps2_key),
+	.ps2_kbd_led_status(ps2_kbd_led_status),
+	.ps2_kbd_led_use(ps2_kbd_led_use),
 
 	.status(status),
 	.status_in(status_in),
@@ -849,6 +853,8 @@ n64top
    .MouseMiddle(mouse[2]),
    .MouseX({mouse[4],mouse[15:8]}),
    .MouseY({mouse[5],mouse[23:16]}),
+   .KeyboardPS2Key(ps2_key),
+   .KeyBoardLED(ps2_kbd_led_status),
  
     // snac  
    .PIFCOMPARE             (status[91]),
