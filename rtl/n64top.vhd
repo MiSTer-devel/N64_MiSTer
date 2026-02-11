@@ -447,7 +447,7 @@ architecture arch of n64top is
    signal keyboard_key1           : std_logic_vector(15 downto 0);
    signal keyboard_key2           : std_logic_vector(15 downto 0);
    signal keyboard_key3           : std_logic_vector(15 downto 0);
-   signal keyboard_error          : std_logic;
+   signal keyboard_status         : std_logic_vector(7 downto 0);
    signal keyboard_led_power      : std_logic;
    signal keyboard_led_caps       : std_logic;
    signal keyboard_led_num        : std_logic;
@@ -1308,7 +1308,7 @@ begin
       keyboard_key1        => keyboard_key1,
       keyboard_key2        => keyboard_key2,
       keyboard_key3        => keyboard_key3,
-      keyboard_error       => keyboard_error,
+      keyboard_status      => keyboard_status,
       keyboard_led_power   => keyboard_led_power,
       keyboard_led_caps    => keyboard_led_caps,
       keyboard_led_num     => keyboard_led_num,
@@ -1334,7 +1334,7 @@ begin
       key1_pos       => keyboard_key1,
       key2_pos       => keyboard_key2,
       key3_pos       => keyboard_key3,
-      key_error      => keyboard_error
+      kb_status      => keyboard_status
    );
 
    KeyBoardLED(1) <= keyboard_led_num;

@@ -66,7 +66,7 @@ entity Gamepad is
       keyboard_key1        : in  std_logic_vector(15 downto 0); -- First key pressed (0x0000 if none)
       keyboard_key2        : in  std_logic_vector(15 downto 0); -- Second key pressed (0x0000 if none)
       keyboard_key3        : in  std_logic_vector(15 downto 0); -- Third key pressed (0x0000 if none)
-      keyboard_error       : in  std_logic;                     -- Set high when 4+ keys pressed
+      keyboard_status      : in  std_logic_vector(7 downto 0);  -- Keyboard Status, Error and Home Key
       -- Keyboard LED outputs
       keyboard_led_power   : out std_logic := '0';  -- Power LED (controlled by bit 2 of command 0x13 parameter)
       keyboard_led_caps    : out std_logic := '0';  -- Caps Lock LED (controlled by bit 1)
@@ -455,8 +455,8 @@ begin
             when RESPONSEKEYBOARD7 =>
                if (slowNextByteEna = '1') then
                   toPIF_ena  <= '1';
-                  -- Status byte: bit 4 = error (4+ keys pressed)
-                  toPIF_data <= "000" & keyboard_error & "0000";
+                  -- Status byte: bit 4 = error (4+ keys pressed), bit 0 = Home Key
+                  toPIF_data <= keyboard_status;
                   state      <= IDLE;
                end if;
             
