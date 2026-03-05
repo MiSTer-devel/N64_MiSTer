@@ -1,0 +1,40 @@
+name: Quartus Compile (Self-Hosted)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  quartus-compile:
+    runs-on:
+      - self-hosted
+      - linux
+      - quartus
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Quartus CLI
+        run: |
+          if ! command -v quartus_sh >/dev/null 2>&1; then
+            echo "quartus_sh not found in PATH on this runner" >&2
+            exit 1
+          fi
+          quartus_sh --version
+
+      - name: Run Quartus regression compile
+        run: tests/run_regression.sh --allow-missing-required-roms --quartus-compile
+
+      - name: Upload Quartus reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quartus-output-files
+          if-no-files-found: warn
+          path: |
+            output_files/*.rpt
+            output_files/*.summary
+            output_files/*.sof
+            output_files/*.pof
+            output_files/*.jic

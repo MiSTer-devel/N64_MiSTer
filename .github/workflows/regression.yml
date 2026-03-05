@@ -1,0 +1,19 @@
+name: Regression
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run regression baseline
+        run: tests/run_regression.sh --allow-missing-required-roms
