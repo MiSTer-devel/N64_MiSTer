@@ -521,6 +521,8 @@ begin
       VI_EXPERIMENTAL_MODE             => VI_EXPERIMENTAL_MODE,
       VI_EXPERIMENTAL_SIGNATURE        => VI_EXPERIMENTAL_SIGNATURE,
       VI_EXPERIMENTAL_FALLBACKS        => vi_exp_fallback_count,
+      VI_EXPERIMENTAL_AUTO_COOLDOWN    => vi_exp_auto_cooldown,
+      VI_EXPERIMENTAL_AUTO_UNSTABLE    => vi_exp_auto_unstable_cnt,
                   
       VI_CTRL_TYPE                     => VIE_CTRL_TYPE,
       VI_CTRL_AA_MODE                  => VIE_CTRL_AA_MODE,
