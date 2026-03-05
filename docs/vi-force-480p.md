@@ -111,8 +111,12 @@ Useful as a quick visual baseline, not true FB forcing.
   - `profile_vi_experimental_enabled(...)` (derived from mode != Off)
 - Default behavior: no entries enabled (all ROMs disabled, mode `Off`).
 
-Currently implemented mode behavior (first incremental step):
-- `Off` / `Auto`: pass-through (native behavior)
+Currently implemented mode behavior:
+- `Off`: pass-through (native behavior)
+- `Auto`: conservative guarded weave engage
+  - requires direct-FB on, interlaced (`SERRATE=1`), width >= 512, `Y_SCALE_FACTOR <= 0x400`,
+    stable origin, and at least 2 prior stable frames
+  - otherwise falls back to native behavior
 - `Force Bob`: effective `VI_CTRL_SERRATE = 0` and `video_blockVIFB = 0`
 - `Force Weave`: effective `VI_CTRL_SERRATE = 1` and force `video_blockVIFB = 1` in direct-FB mode
 
@@ -124,9 +128,9 @@ Currently implemented mode behavior (first incremental step):
   - `Shhhh`: low 16 bits of the ROM profile signature (hex)
   - `Fhhhh`: fallback counter (hex, saturating at `FFFF`)
 - Current fallback counter behavior:
-  - increments once per frame when an experimental profile is enabled but explicit Bob/Weave override is not actively applied
-  - this includes `Auto` mode (currently pass-through)
-  - also includes cases where Clean HDMI/direct-FB is off, since experimental VI policy is intended for the direct-FB path
+  - increments once per frame when `Auto` falls back to native path
+  - increments for `Force Weave` when direct-FB is off or interlace preconditions are not met
+  - saturates at `FFFF`
 
 To opt in a ROM:
 1. Compute its signature:
