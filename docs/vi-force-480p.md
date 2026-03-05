@@ -106,13 +106,20 @@ Useful as a quick visual baseline, not true FB forcing.
 ### Current Profile Implementation
 - Location: `N64.sv`
 - Signature: `{5'b0, rom_size_bytes[26:0], fnv1a32(ioctl ROM byte stream)}`
-- Lookup function: `profile_vi_experimental_enabled(...)`
-- Default behavior: no entries enabled (all ROMs disabled).
+- Lookup functions:
+  - `profile_vi_experimental_mode(...)` -> `Off/Auto/Force Bob/Force Weave`
+  - `profile_vi_experimental_enabled(...)` (derived from mode != Off)
+- Default behavior: no entries enabled (all ROMs disabled, mode `Off`).
+
+Currently implemented mode behavior (first incremental step):
+- `Off` / `Auto`: pass-through (native behavior)
+- `Force Bob`: effective `VI_CTRL_SERRATE = 0` and `video_blockVIFB = 0`
+- `Force Weave`: effective `VI_CTRL_SERRATE = 1` and force `video_blockVIFB = 1` in direct-FB mode
 
 To opt in a ROM:
 1. Compute its signature:
    - `tests/rom_signature.py /path/to/rom.z64`
-2. Add a `case` entry in `profile_vi_experimental_enabled(...)` returning `1'b1`.
+2. Add a `case` entry in `profile_vi_experimental_mode(...)` selecting desired mode.
 3. Rebuild core and retest.
 
 ## Reference Test ROMs
