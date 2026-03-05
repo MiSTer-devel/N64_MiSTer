@@ -39,6 +39,7 @@ entity VI is
       VI_DIRECTFBMODE  : in  std_logic;
       VI_EXPERIMENTAL_ENABLE : in  std_logic;
       VI_EXPERIMENTAL_MODE   : in  unsigned(1 downto 0);
+      VI_EXPERIMENTAL_SIGNATURE : in unsigned(15 downto 0);
       
       errorEna         : in  std_logic;
       errorCode        : in  unsigned(31 downto 0);
@@ -173,6 +174,7 @@ architecture arch of VI is
    signal fpscountBCD_next          : unsigned(7 downto 0) := (others => '0');
    signal fps_SecondCounter         : integer range 0 to 62499999 := 0;
    signal fps_VI_ORIGIN_last        : unsigned(23 downto 0) := (others => '0');
+   signal vi_exp_fallback_count     : unsigned(15 downto 0) := (others => '0');
 
    -- savestates
    type t_ssarray is array(0 to 7) of std_logic_vector(63 downto 0);
@@ -284,6 +286,7 @@ begin
             end if;
 
             fpscountBCD_next               <= (others => '0');            
+            vi_exp_fallback_count          <= (others => '0');
 
          elsif (ce = '1') then
          
@@ -401,6 +404,14 @@ begin
                   end if;
                end if;
 
+               if (VI_EXPERIMENTAL_ENABLE = '1') then
+                  if (VI_DIRECTFBMODE = '0' or (VI_EXPERIMENTAL_MODE /= "10" and VI_EXPERIMENTAL_MODE /= "11")) then
+                     if (vi_exp_fallback_count < x"FFFF") then
+                        vi_exp_fallback_count <= vi_exp_fallback_count + 1;
+                     end if;
+                  end if;
+               end if;
+
                if (VI_EXPERIMENTAL_ENABLE = '1' and VI_EXPERIMENTAL_MODE = "10") then
                   video_blockVIFB <= '0';
                   sameFrameCnt    <= (others => '0');
@@ -469,6 +480,10 @@ begin
                   
       fpscountOn                       => fpscountOn, 
       fpscountBCD                      => fpscountBCD,
+      VI_EXPERIMENTAL_ENABLE           => VI_EXPERIMENTAL_ENABLE,
+      VI_EXPERIMENTAL_MODE             => VI_EXPERIMENTAL_MODE,
+      VI_EXPERIMENTAL_SIGNATURE        => VI_EXPERIMENTAL_SIGNATURE,
+      VI_EXPERIMENTAL_FALLBACKS        => vi_exp_fallback_count,
                   
       VI_CTRL_TYPE                     => VIE_CTRL_TYPE,
       VI_CTRL_AA_MODE                  => VIE_CTRL_AA_MODE,
@@ -563,6 +578,5 @@ begin
    end process;
 
 end architecture;
-
 
 

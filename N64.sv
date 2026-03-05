@@ -825,6 +825,7 @@ n64top
    .VI_DIRECTFBMODE(clean_hdmi),
    .VI_EXPERIMENTAL_ENABLE(vi_exp_profile_enable),
    .VI_EXPERIMENTAL_MODE(vi_exp_profile_mode),
+   .VI_EXPERIMENTAL_SIGNATURE(rom_profile_signature[15:0]),
    
    .CICTYPE(status[68:65]),
    .RAMSIZE8(~status[70]),

@@ -39,6 +39,7 @@ entity n64top is
       VI_DIRECTFBMODE         : in  std_logic;
       VI_EXPERIMENTAL_ENABLE  : in  std_logic;
       VI_EXPERIMENTAL_MODE    : in  unsigned(1 downto 0);
+      VI_EXPERIMENTAL_SIGNATURE : in unsigned(15 downto 0);
       
       CICTYPE                 : in  std_logic_vector(3 downto 0);
       RAMSIZE8                : in  std_logic;
@@ -865,6 +866,7 @@ begin
       VI_DIRECTFBMODE      => VI_DIRECTFBMODE,
       VI_EXPERIMENTAL_ENABLE => VI_EXPERIMENTAL_ENABLE,
       VI_EXPERIMENTAL_MODE => VI_EXPERIMENTAL_MODE,
+      VI_EXPERIMENTAL_SIGNATURE => VI_EXPERIMENTAL_SIGNATURE,
      
       errorEna             => errorEna, 
       errorCode            => errorCode,
