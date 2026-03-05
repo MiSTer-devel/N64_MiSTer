@@ -1,6 +1,9 @@
 name: Quartus Compile (CodeBuild)
 
 on:
+  push:
+    branches:
+      - codex/vi-exp-phase3
   workflow_dispatch:
     inputs:
       codebuild_project:
