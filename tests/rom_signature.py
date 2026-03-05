@@ -33,15 +33,28 @@ def compute_signature(path: Path) -> tuple[int, int, int]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("rom", type=Path, help="Path to ROM file")
+    parser.add_argument(
+        "--mode",
+        default="auto",
+        choices=("off", "auto", "bob", "weave"),
+        help="Mode value to emit in the N64.sv case line (default: auto).",
+    )
     args = parser.parse_args()
 
     size, h, sig = compute_signature(args.rom)
+    mode_map = {
+        "off": "2'b00",
+        "auto": "2'b01",
+        "bob": "2'b10",
+        "weave": "2'b11",
+    }
+    mode_bits = mode_map[args.mode]
     print(f"ROM: {args.rom}")
     print(f"Size (bytes, 27-bit): 0x{size:07X} ({size})")
     print(f"FNV1a32: 0x{h:08X}")
     print(f"Signature (64-bit): 0x{sig:016X}")
     print("Case entry:")
-    print(f"64'h{sig:016X}: profile_vi_experimental_enabled = 1'b1;")
+    print(f"64'h{sig:016X}: profile_vi_experimental_mode = {mode_bits};")
     return 0
 
 
