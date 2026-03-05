@@ -6,6 +6,7 @@ on:
       codebuild_project:
         description: "CodeBuild runner project name"
         required: true
+        default: MiSTer_Github_Action
         type: string
       instance_size:
         description: "CodeBuild runner instance size override"
