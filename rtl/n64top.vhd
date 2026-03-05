@@ -37,6 +37,7 @@ entity n64top is
       VI_NOISEOFF             : in  std_logic;
       VI_7BITPERCOLOR         : in  std_logic;
       VI_DIRECTFBMODE         : in  std_logic;
+      VI_EXPERIMENTAL_ENABLE  : in  std_logic;
       
       CICTYPE                 : in  std_logic_vector(3 downto 0);
       RAMSIZE8                : in  std_logic;
@@ -861,6 +862,7 @@ begin
       VI_DIVOTOFF          => VI_DIVOTOFF,
       VI_7BITPERCOLOR      => VI_7BITPERCOLOR,
       VI_DIRECTFBMODE      => VI_DIRECTFBMODE,
+      VI_EXPERIMENTAL_ENABLE => VI_EXPERIMENTAL_ENABLE,
      
       errorEna             => errorEna, 
       errorCode            => errorCode,

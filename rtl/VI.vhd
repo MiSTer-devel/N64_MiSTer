@@ -37,6 +37,7 @@ entity VI is
       VI_DIVOTOFF      : in  std_logic;
       VI_7BITPERCOLOR  : in  std_logic;
       VI_DIRECTFBMODE  : in  std_logic;
+      VI_EXPERIMENTAL_ENABLE : in  std_logic;
       
       errorEna         : in  std_logic;
       errorCode        : in  unsigned(31 downto 0);
@@ -136,6 +137,30 @@ architecture arch of VI is
    signal VI_TEST_ADDR                    : unsigned( 6 downto 0) := (others => '0');  -- 0x04400038 (RW): [6:0] TEST_ADDR<6:0>: Diagnostics only, usage unknown 
    signal VI_STAGED_DATA                  : unsigned(31 downto 0) := (others => '0');  -- 0x0440003C (RW): [31:0] STAGED_DATA<31:0>: Diagnostics only, usage unknown 
 
+   -- Effective VI layer used for experimental overrides.
+   -- Bus-visible VI registers remain unchanged; VI fetch/output reads this layer.
+   signal VIE_CTRL_TYPE                   : unsigned(1 downto 0):= (others => '0');
+   signal VIE_CTRL_AA_MODE                : unsigned(1 downto 0):= (others => '0');
+   signal VIE_CTRL_SERRATE                : std_logic := '0';
+   signal VIE_CTRL_GAMMA_ENABLE           : std_logic := '0';
+   signal VIE_CTRL_GAMMA_DITHER_ENABLE    : std_logic := '0';
+   signal VIE_CTRL_DIVOT_ENABLE           : std_logic := '0';
+   signal VIE_CTRL_DEDITHER_FILTER_ENABLE : std_logic := '0';
+   signal VIE_ORIGIN                      : unsigned(23 downto 0) := (others => '0');
+   signal VIE_WIDTH                       : unsigned(11 downto 0) := (others => '0');
+   signal VIE_X_SCALE_FACTOR              : unsigned(11 downto 0) := (others => '0');
+   signal VIE_X_SCALE_OFFSET              : unsigned(11 downto 0) := (others => '0');
+   signal VIE_Y_SCALE_FACTOR              : unsigned(11 downto 0) := (others => '0');
+   signal VIE_Y_SCALE_OFFSET              : unsigned(11 downto 0) := (others => '0');
+   signal VIE_V_SYNC                      : unsigned(9 downto 0) := (others => '0');
+   signal VIE_H_SYNC_LENGTH               : unsigned(11 downto 0) := (others => '0');
+   signal VIE_H_VIDEO_START               : unsigned(9 downto 0) := (others => '0');
+   signal VIE_H_VIDEO_END                 : unsigned(9 downto 0) := (others => '0');
+   signal VIE_V_VIDEO_START               : unsigned(9 downto 0) := (others => '0');
+   signal VIE_V_VIDEO_END                 : unsigned(9 downto 0) := (others => '0');
+   signal VIE_HSYNC_WIDTH                 : unsigned(7 downto 0) := (others => '0');
+   signal VIE_VSYNC_WIDTH                 : unsigned(3 downto 0) := (others => '0');
+
    signal newFrame                        : std_logic;
    signal newLine                         : std_logic;
    
@@ -154,6 +179,36 @@ architecture arch of VI is
    signal ss_out : t_ssarray := (others => (others => '0')); 
 
 begin 
+
+   process (all)
+   begin
+      -- Pass-through today. Future policy logic can override VIE_* when enabled.
+      VIE_CTRL_TYPE                   <= VI_CTRL_TYPE;
+      VIE_CTRL_AA_MODE                <= VI_CTRL_AA_MODE;
+      VIE_CTRL_SERRATE                <= VI_CTRL_SERRATE;
+      VIE_CTRL_GAMMA_ENABLE           <= VI_CTRL_GAMMA_ENABLE;
+      VIE_CTRL_GAMMA_DITHER_ENABLE    <= VI_CTRL_GAMMA_DITHER_ENABLE;
+      VIE_CTRL_DIVOT_ENABLE           <= VI_CTRL_DIVOT_ENABLE;
+      VIE_CTRL_DEDITHER_FILTER_ENABLE <= VI_CTRL_DEDITHER_FILTER_ENABLE;
+      VIE_ORIGIN                      <= VI_ORIGIN;
+      VIE_WIDTH                       <= VI_WIDTH;
+      VIE_X_SCALE_FACTOR              <= VI_X_SCALE_FACTOR;
+      VIE_X_SCALE_OFFSET              <= VI_X_SCALE_OFFSET;
+      VIE_Y_SCALE_FACTOR              <= VI_Y_SCALE_FACTOR;
+      VIE_Y_SCALE_OFFSET              <= VI_Y_SCALE_OFFSET;
+      VIE_V_SYNC                      <= VI_V_SYNC;
+      VIE_H_SYNC_LENGTH               <= VI_H_SYNC_LENGTH;
+      VIE_H_VIDEO_START               <= VI_H_VIDEO_START;
+      VIE_H_VIDEO_END                 <= VI_H_VIDEO_END;
+      VIE_V_VIDEO_START               <= VI_V_VIDEO_START;
+      VIE_V_VIDEO_END                 <= VI_V_VIDEO_END;
+      VIE_HSYNC_WIDTH                 <= VI_HSYNC_WIDTH;
+      VIE_VSYNC_WIDTH                 <= VI_VSYNC_WIDTH;
+
+      if (VI_EXPERIMENTAL_ENABLE = '1') then
+         null;
+      end if;
+   end process;
 
    process (clk1x)
    begin
@@ -401,27 +456,27 @@ begin
       fpscountOn                       => fpscountOn, 
       fpscountBCD                      => fpscountBCD,
                   
-      VI_CTRL_TYPE                     => VI_CTRL_TYPE,
-      VI_CTRL_AA_MODE                  => VI_CTRL_AA_MODE,
-      VI_CTRL_SERRATE                  => VI_CTRL_SERRATE,
-      VI_CTRL_GAMMA_ENABLE             => VI_CTRL_GAMMA_ENABLE,
-      VI_CTRL_GAMMA_DITHER_ENABLE      => VI_CTRL_GAMMA_DITHER_ENABLE,
-      VI_CTRL_DIVOT_ENABLE             => VI_CTRL_DIVOT_ENABLE,
-      VI_CTRL_DEDITHER_FILTER_ENABLE   => VI_CTRL_DEDITHER_FILTER_ENABLE,
-      VI_ORIGIN                        => VI_ORIGIN,   
-      VI_WIDTH                         => VI_WIDTH,  
-      VI_X_SCALE_FACTOR                => VI_X_SCALE_FACTOR,
-      VI_X_SCALE_OFFSET                => VI_X_SCALE_OFFSET,
-      VI_Y_SCALE_FACTOR                => VI_Y_SCALE_FACTOR,
-      VI_Y_SCALE_OFFSET                => VI_Y_SCALE_OFFSET,
-      VI_V_SYNC                        => VI_V_SYNC,       
-      VI_H_SYNC_LENGTH                 => VI_H_SYNC_LENGTH, 
-      VI_H_VIDEO_START                 => VI_H_VIDEO_START,
-      VI_H_VIDEO_END                   => VI_H_VIDEO_END,  
-      VI_V_VIDEO_START                 => VI_V_VIDEO_START,
-      VI_V_VIDEO_END                   => VI_V_VIDEO_END,  
-      VI_HSYNC_WIDTH                   => VI_HSYNC_WIDTH,  
-      VI_VSYNC_WIDTH                   => VI_VSYNC_WIDTH,  
+      VI_CTRL_TYPE                     => VIE_CTRL_TYPE,
+      VI_CTRL_AA_MODE                  => VIE_CTRL_AA_MODE,
+      VI_CTRL_SERRATE                  => VIE_CTRL_SERRATE,
+      VI_CTRL_GAMMA_ENABLE             => VIE_CTRL_GAMMA_ENABLE,
+      VI_CTRL_GAMMA_DITHER_ENABLE      => VIE_CTRL_GAMMA_DITHER_ENABLE,
+      VI_CTRL_DIVOT_ENABLE             => VIE_CTRL_DIVOT_ENABLE,
+      VI_CTRL_DEDITHER_FILTER_ENABLE   => VIE_CTRL_DEDITHER_FILTER_ENABLE,
+      VI_ORIGIN                        => VIE_ORIGIN,   
+      VI_WIDTH                         => VIE_WIDTH,  
+      VI_X_SCALE_FACTOR                => VIE_X_SCALE_FACTOR,
+      VI_X_SCALE_OFFSET                => VIE_X_SCALE_OFFSET,
+      VI_Y_SCALE_FACTOR                => VIE_Y_SCALE_FACTOR,
+      VI_Y_SCALE_OFFSET                => VIE_Y_SCALE_OFFSET,
+      VI_V_SYNC                        => VIE_V_SYNC,       
+      VI_H_SYNC_LENGTH                 => VIE_H_SYNC_LENGTH, 
+      VI_H_VIDEO_START                 => VIE_H_VIDEO_START,
+      VI_H_VIDEO_END                   => VIE_H_VIDEO_END,  
+      VI_V_VIDEO_START                 => VIE_V_VIDEO_START,
+      VI_V_VIDEO_END                   => VIE_V_VIDEO_END,  
+      VI_HSYNC_WIDTH                   => VIE_HSYNC_WIDTH,  
+      VI_VSYNC_WIDTH                   => VIE_VSYNC_WIDTH,  
                   
       newFrame                         => newFrame,
       newLine                          => newLine,
@@ -494,7 +549,6 @@ begin
    end process;
 
 end architecture;
-
 
 
 
