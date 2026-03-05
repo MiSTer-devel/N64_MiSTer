@@ -97,6 +97,21 @@ Useful as a quick visual baseline, not true FB forcing.
 6. Add per-title policy gating once stable.
 7. Revisit Option B compositor only if Option C cannot meet quality/compatibility targets.
 
+## Plan Status (Live)
+Last updated: 2026-03-05
+
+- [x] 1. Effective VI layer scaffolded (bus-visible registers unchanged).
+- [x] 2. Policy controls added (`Off/Auto/Force Bob/Force Weave`) behind per-ROM opt-in.
+- [x] 3. Runtime instrumentation added (`VIX` overlay with mode/signature/fallback/cooldown/unstable state).
+- [ ] 4. Compatibility pass in progress (regression harness is in place; retail matrix still pending).
+- [x] 5. Initial `Auto` guardrails implemented (confidence checks + fallback + hysteresis cooldown).
+- [~] 6. Per-title policy gating started (first ROM profile entry added; allowlist expansion pending).
+- [ ] 7. Option B compositor deferred pending Option C validation outcomes.
+
+Current focus:
+- Expand per-ROM allowlist based on observed quality/stability.
+- Collect on-device observations using `VIX` fields before widening `Auto` usage.
+
 ## Rollout Policy (Agreed)
 - Experimental features are disabled by default.
 - Enable policy is explicit per ROM file/profile entry only (no global auto-enable).
