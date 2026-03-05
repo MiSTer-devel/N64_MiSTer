@@ -1,0 +1,4 @@
+# pattern	required	description
+n64_testcart*.z64	yes	Nintendo 64 test cart runtime image
+n64_testcart*reflash*.z64	no	Nintendo 64 test cart reflasher image
+krom*cpu*test*.z64	no	Krom CPU correctness suite

@@ -6,6 +6,10 @@ SDRAM of any size is required.
 ## Bios
 Rename your PIF ROM file (e.g. `pif.ntsc.rom` ) and place it in the `./games/N64/` folder as `boot.rom`
 
+## Developer Notes
+- [VI 480p Framebuffer Forcing Notes](docs/vi-force-480p.md)
+- [Regression Test Suite](tests/README.md)
+
 ## Error messages
 
 If there is a recognized problem, an overlay is displayed, showing which error has occured.

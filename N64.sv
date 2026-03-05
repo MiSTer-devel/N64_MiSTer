@@ -455,6 +455,31 @@ wire [31:0] img_size;
 
 wire [3:0] rumble;
 
+function automatic [31:0] fnv1a32_byte(input [31:0] hash_in, input [7:0] byte_in);
+begin
+	fnv1a32_byte = (hash_in ^ {24'd0, byte_in}) * 32'h01000193;
+end
+endfunction
+
+function automatic [1:0] profile_vi_experimental_mode(input [63:0] rom_signature);
+begin
+	// 2'b00 = Off, 2'b01 = Auto, 2'b10 = Force Bob, 2'b11 = Force Weave
+	profile_vi_experimental_mode = 2'b00;
+	case (rom_signature)
+		// Add explicit per-ROM signatures here to opt in experimental VI behavior.
+		// Example:
+		// 64'h0000000000000000: profile_vi_experimental_mode = 2'b01;
+		default: ;
+	endcase
+end
+endfunction
+
+function automatic profile_vi_experimental_enabled(input [63:0] rom_signature);
+begin
+	profile_vi_experimental_enabled = (profile_vi_experimental_mode(rom_signature) != 2'b00);
+end
+endfunction
+
 hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 (
 	.clk_sys(clk_1x),
@@ -558,6 +583,13 @@ wire       ramdownload_ready;
 reg        cartN64_download;
 reg        cartGB_download;
 reg        cart_loaded = 0;
+wire       cartN64_stream = ioctl_download & (ioctl_index[5:0] == 1);
+
+reg        cartN64_stream_1 = 0;
+reg [31:0] rom_profile_hash = 32'h811C9DC5;
+reg [63:0] rom_profile_signature = 64'd0;
+reg        vi_exp_profile_enable = 0;
+reg  [1:0] vi_exp_profile_mode = 2'b00;
 
 localparam CARTN64_START = 16777216;
 localparam CARTGB_START  = 8388608;
@@ -594,6 +626,42 @@ always @(posedge clk_1x) begin
       ioctl_wait <= 0;
 	end
    
+end
+
+always @(posedge clk_1x) begin
+	reg [31:0] hash_base;
+	reg [31:0] hash_next;
+
+	cartN64_stream_1 <= cartN64_stream;
+
+	if(reset_or) begin
+		rom_profile_hash      <= 32'h811C9DC5;
+		rom_profile_signature <= 64'd0;
+		vi_exp_profile_enable <= 1'b0;
+		vi_exp_profile_mode   <= 2'b00;
+	end else begin
+		hash_base = rom_profile_hash;
+
+		if(cartN64_stream && ~cartN64_stream_1) begin
+			hash_base             = 32'h811C9DC5;
+			rom_profile_signature <= 64'd0;
+			vi_exp_profile_enable <= 1'b0;
+			vi_exp_profile_mode   <= 2'b00;
+		end
+
+		if(cartN64_stream && ioctl_wr) begin
+			hash_next        = fnv1a32_byte(hash_base, ioctl_dout[7:0]);
+			rom_profile_hash <= fnv1a32_byte(hash_next, ioctl_dout[15:8]);
+		end else if(cartN64_stream && ~cartN64_stream_1) begin
+			rom_profile_hash <= 32'h811C9DC5;
+		end
+
+		if(~cartN64_stream && cartN64_stream_1) begin
+			rom_profile_signature <= {5'd0, ioctl_addr, rom_profile_hash};
+			vi_exp_profile_mode   <= profile_vi_experimental_mode({5'd0, ioctl_addr, rom_profile_hash});
+			vi_exp_profile_enable <= profile_vi_experimental_enabled({5'd0, ioctl_addr, rom_profile_hash});
+		end
+	end
 end
 
 // Pop OSD menu if no rom has been loaded automatically
@@ -755,6 +823,9 @@ n64top
    .VI_NOISEOFF(status[37]),
    .VI_7BITPERCOLOR(~status[104]),
    .VI_DIRECTFBMODE(clean_hdmi),
+   .VI_EXPERIMENTAL_ENABLE(vi_exp_profile_enable),
+   .VI_EXPERIMENTAL_MODE(vi_exp_profile_mode),
+   .VI_EXPERIMENTAL_SIGNATURE(rom_profile_signature[15:0]),
    
    .CICTYPE(status[68:65]),
    .RAMSIZE8(~status[70]),

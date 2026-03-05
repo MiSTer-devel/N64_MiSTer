@@ -40,6 +40,10 @@ entity VI_videoout is
                   
       fpscountOn                       : in  std_logic;
       fpscountBCD                      : in  unsigned(7 downto 0);  
+      VI_EXPERIMENTAL_ENABLE           : in  std_logic;
+      VI_EXPERIMENTAL_MODE             : in  unsigned(1 downto 0);
+      VI_EXPERIMENTAL_SIGNATURE        : in  unsigned(15 downto 0);
+      VI_EXPERIMENTAL_FALLBACKS        : in  unsigned(15 downto 0);
                   
       VI_CTRL_TYPE                     : in  unsigned(1 downto 0);
       VI_CTRL_AA_MODE                  : in  unsigned(1 downto 0);
@@ -222,7 +226,12 @@ architecture arch of VI_videoout is
    
    signal errortext           : unsigned(63 downto 0);
    signal overlay_error_data  : std_logic_vector(23 downto 0);
-   signal overlay_error_ena   : std_logic;   
+   signal overlay_error_ena   : std_logic;
+
+   signal vi_exp_modechar     : unsigned(7 downto 0);
+   signal vi_exp_text         : unsigned(143 downto 0);
+   signal overlay_vi_exp_data : std_logic_vector(23 downto 0);
+   signal overlay_vi_exp_ena  : std_logic;
    
 begin 
 
@@ -649,15 +658,41 @@ begin
       o_pixel_out_ena        => overlay_error_ena,
       textstring             => x"45" & errortext
    ); 
+
+   with VI_EXPERIMENTAL_MODE select
+      vi_exp_modechar <= x"41" when "01", -- A (auto)
+                         x"42" when "10", -- B (force bob)
+                         x"57" when "11", -- W (force weave)
+                         x"4F" when others; -- O (off)
+
+   vi_exp_text <= to_unsigned("VIX M") &
+                  vi_exp_modechar &
+                  to_unsigned(" S") &
+                  conv_number(VI_EXPERIMENTAL_SIGNATURE) &
+                  to_unsigned(" F") &
+                  conv_number(VI_EXPERIMENTAL_FALLBACKS);
+
+   ioverlayVIExp : entity work.VI_overlay generic map (18, 4, 26, x"007000")
+   port map
+   (
+      clk                    => clkvid,
+      ce                     => videoout_out.ce,
+      ena                    => VI_EXPERIMENTAL_ENABLE,
+      i_pixel_out_x          => to_integer(overlay_xpos),
+      i_pixel_out_y          => to_integer(overlay_ypos),
+      o_pixel_out_data       => overlay_vi_exp_data,
+      o_pixel_out_ena        => overlay_vi_exp_ena,
+      textstring             => vi_exp_text
+   );
    
-   overlay_ena <= overlay_fps_ena or overlay_error_ena;
+   overlay_ena <= overlay_fps_ena or overlay_error_ena or overlay_vi_exp_ena;
    
    overlay_data <= overlay_fps_data   when (overlay_fps_ena = '1') else
                    overlay_error_data when (overlay_error_ena = '1') else
+                   overlay_vi_exp_data when (overlay_vi_exp_ena = '1') else
                    (others => '0');
    
 end architecture;
-
 
 
 
