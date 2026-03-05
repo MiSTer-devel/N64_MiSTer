@@ -116,6 +116,18 @@ Currently implemented mode behavior (first incremental step):
 - `Force Bob`: effective `VI_CTRL_SERRATE = 0` and `video_blockVIFB = 0`
 - `Force Weave`: effective `VI_CTRL_SERRATE = 1` and force `video_blockVIFB = 1` in direct-FB mode
 
+### Runtime Instrumentation (Current)
+- A lightweight on-screen debug line is shown while an experimental profile is active:
+  - `VIX Mx Shhhh Fhhhh`
+- Field meanings:
+  - `Mx`: active profile mode (`A` = Auto, `B` = Force Bob, `W` = Force Weave)
+  - `Shhhh`: low 16 bits of the ROM profile signature (hex)
+  - `Fhhhh`: fallback counter (hex, saturating at `FFFF`)
+- Current fallback counter behavior:
+  - increments once per frame when an experimental profile is enabled but explicit Bob/Weave override is not actively applied
+  - this includes `Auto` mode (currently pass-through)
+  - also includes cases where Clean HDMI/direct-FB is off, since experimental VI policy is intended for the direct-FB path
+
 To opt in a ROM:
 1. Compute its signature:
    - `tests/rom_signature.py /path/to/rom.z64`
