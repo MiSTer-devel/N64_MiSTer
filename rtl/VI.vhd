@@ -175,6 +175,8 @@ architecture arch of VI is
    signal fps_SecondCounter         : integer range 0 to 62499999 := 0;
    signal fps_VI_ORIGIN_last        : unsigned(23 downto 0) := (others => '0');
    signal vi_exp_fallback_count     : unsigned(15 downto 0) := (others => '0');
+   signal vi_exp_auto_cooldown      : unsigned(7 downto 0) := (others => '0');
+   signal vi_exp_auto_unstable_cnt  : unsigned(2 downto 0) := (others => '0');
 
    -- savestates
    type t_ssarray is array(0 to 7) of std_logic_vector(63 downto 0);
@@ -287,6 +289,8 @@ begin
 
             fpscountBCD_next               <= (others => '0');            
             vi_exp_fallback_count          <= (others => '0');
+            vi_exp_auto_cooldown           <= (others => '0');
+            vi_exp_auto_unstable_cnt       <= (others => '0');
 
          elsif (ce = '1') then
          
@@ -404,6 +408,15 @@ begin
                   end if;
                end if;
 
+               if (VI_EXPERIMENTAL_ENABLE = '1' and VI_EXPERIMENTAL_MODE = "01") then
+                  if (vi_exp_auto_cooldown > 0) then
+                     vi_exp_auto_cooldown <= vi_exp_auto_cooldown - 1;
+                  end if;
+               else
+                  vi_exp_auto_cooldown <= (others => '0');
+                  vi_exp_auto_unstable_cnt <= (others => '0');
+               end if;
+
                if (VI_EXPERIMENTAL_ENABLE = '1' and VI_EXPERIMENTAL_MODE = "10") then
                   video_blockVIFB <= '0';
                   sameFrameCnt    <= (others => '0');
@@ -414,9 +427,11 @@ begin
                -- only force weave for stable, interlaced, high-res direct-FB scenes.
                elsif (VI_EXPERIMENTAL_ENABLE = '1' and VI_EXPERIMENTAL_MODE = "01" and VI_DIRECTFBMODE = '1' and
                       VIE_CTRL_SERRATE = '1' and VIE_WIDTH >= 512 and VIE_Y_SCALE_FACTOR <= x"400" and
-                      sameFrameCnt >= 2 and VIE_ORIGIN(23 downto 12) = fps_VI_ORIGIN_last(23 downto 12)) then
+                      sameFrameCnt >= 2 and VIE_ORIGIN(23 downto 12) = fps_VI_ORIGIN_last(23 downto 12) and
+                      vi_exp_auto_cooldown = 0) then
                   video_blockVIFB <= '1';
                   sameFrameCnt    <= (others => '0');
+                  vi_exp_auto_unstable_cnt <= (others => '0');
                else
                   if (VI_EXPERIMENTAL_ENABLE = '1' and
                      (
@@ -425,6 +440,19 @@ begin
                      )) then
                      if (vi_exp_fallback_count < x"FFFF") then
                         vi_exp_fallback_count <= vi_exp_fallback_count + 1;
+                     end if;
+                  end if;
+
+                  if (VI_EXPERIMENTAL_ENABLE = '1' and VI_EXPERIMENTAL_MODE = "01") then
+                     if (VI_DIRECTFBMODE = '0' or VIE_CTRL_SERRATE = '0' or VIE_ORIGIN(23 downto 12) /= fps_VI_ORIGIN_last(23 downto 12)) then
+                        if (vi_exp_auto_unstable_cnt = "111") then
+                           vi_exp_auto_unstable_cnt <= (others => '0');
+                           vi_exp_auto_cooldown <= to_unsigned(30, vi_exp_auto_cooldown'length);
+                        else
+                           vi_exp_auto_unstable_cnt <= vi_exp_auto_unstable_cnt + 1;
+                        end if;
+                     elsif (vi_exp_auto_unstable_cnt > 0) then
+                        vi_exp_auto_unstable_cnt <= vi_exp_auto_unstable_cnt - 1;
                      end if;
                   end if;
 
@@ -587,4 +615,3 @@ begin
    end process;
 
 end architecture;
-
