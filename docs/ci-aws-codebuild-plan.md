@@ -16,6 +16,15 @@ Set up a pay-per-use Quartus CI path using AWS CodeBuild integrated with GitHub 
 - Build artifacts are captured in CI.
 - Cost per build and average build time are measured and acceptable.
 
+## Status
+Last updated: 2026-03-05
+
+- [x] Workflow scaffold added: `.github/workflows/quartus-codebuild.yml`
+- [x] Setup guide added: `docs/ci-aws-codebuild-runner-setup.md`
+- [ ] AWS CodeBuild runner project created
+- [ ] IAM/OIDC trust configured
+- [ ] First successful pilot run completed
+
 ## Phased Plan
 
 ### Phase 1: Foundation
