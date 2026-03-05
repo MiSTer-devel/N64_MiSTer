@@ -1,0 +1,59 @@
+name: Quartus Compile (CodeBuild)
+
+on:
+  workflow_dispatch:
+    inputs:
+      codebuild_project:
+        description: "CodeBuild runner project name"
+        required: true
+        type: string
+      instance_size:
+        description: "CodeBuild runner instance size override"
+        required: true
+        default: large
+        type: choice
+        options:
+          - small
+          - medium
+          - large
+          - xlarge
+          - 2xlarge
+
+permissions:
+  contents: read
+
+jobs:
+  quartus-compile:
+    name: Quartus compile on CodeBuild runner
+    timeout-minutes: 240
+    runs-on:
+      - ${{ format('codebuild-{0}-{1}-{2}', inputs.codebuild_project, github.run_id, github.run_attempt) }}
+      - ${{ format('instance-size:{0}', inputs.instance_size) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Quartus CLI
+        run: |
+          if ! command -v quartus_sh >/dev/null 2>&1; then
+            echo "quartus_sh not found in PATH on CodeBuild runner" >&2
+            exit 1
+          fi
+          quartus_sh --version
+
+      - name: Run Quartus regression compile
+        run: tests/run_regression.sh --allow-missing-required-roms --quartus-compile
+
+      - name: Upload Quartus reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quartus-codebuild-output-files
+          if-no-files-found: warn
+          path: |
+            output_files/*.rpt
+            output_files/*.summary
+            output_files/*.sof
+            output_files/*.pof
+            output_files/*.jic
