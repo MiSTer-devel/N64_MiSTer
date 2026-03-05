@@ -38,6 +38,7 @@ entity VI is
       VI_7BITPERCOLOR  : in  std_logic;
       VI_DIRECTFBMODE  : in  std_logic;
       VI_EXPERIMENTAL_ENABLE : in  std_logic;
+      VI_EXPERIMENTAL_MODE   : in  unsigned(1 downto 0);
       
       errorEna         : in  std_logic;
       errorCode        : in  unsigned(31 downto 0);
@@ -206,7 +207,11 @@ begin
       VIE_VSYNC_WIDTH                 <= VI_VSYNC_WIDTH;
 
       if (VI_EXPERIMENTAL_ENABLE = '1') then
-         null;
+         case (VI_EXPERIMENTAL_MODE) is
+            when "10" => VIE_CTRL_SERRATE <= '0'; -- force bob
+            when "11" => VIE_CTRL_SERRATE <= '1'; -- force weave
+            when others => null; -- off/auto
+         end case;
       end if;
    end process;
 
@@ -386,8 +391,8 @@ begin
             
             -- fps counter
             if (newFrame = '1') then
-               fps_VI_ORIGIN_last <= VI_ORIGIN;
-               if (VI_ORIGIN(23 downto 12) /= fps_VI_ORIGIN_last(23 downto 12)) then
+               fps_VI_ORIGIN_last <= VIE_ORIGIN;
+               if (VIE_ORIGIN(23 downto 12) /= fps_VI_ORIGIN_last(23 downto 12)) then
                   if (fpscountBCD_next(3 downto 0) = x"9") then
                      fpscountBCD_next(7 downto 4) <= fpscountBCD_next(7 downto 4) + 1;
                      fpscountBCD_next(3 downto 0) <= x"0";
@@ -395,13 +400,22 @@ begin
                      fpscountBCD_next(3 downto 0) <= fpscountBCD_next(3 downto 0) + 1;
                   end if;
                end if;
-               if (VI_ORIGIN(23 downto 12) /= fps_VI_ORIGIN_last(23 downto 12) or VI_CTRL_SERRATE = '0') then
+
+               if (VI_EXPERIMENTAL_ENABLE = '1' and VI_EXPERIMENTAL_MODE = "10") then
                   video_blockVIFB <= '0';
                   sameFrameCnt    <= (others => '0');
-               elsif (sameFrameCnt < 30) then
-                  sameFrameCnt <= sameFrameCnt + 1;
-               else
+               elsif (VI_EXPERIMENTAL_ENABLE = '1' and VI_EXPERIMENTAL_MODE = "11" and VI_DIRECTFBMODE = '1' and VIE_CTRL_SERRATE = '1') then
                   video_blockVIFB <= '1';
+                  sameFrameCnt    <= (others => '0');
+               else
+                  if (VIE_ORIGIN(23 downto 12) /= fps_VI_ORIGIN_last(23 downto 12) or VIE_CTRL_SERRATE = '0') then
+                     video_blockVIFB <= '0';
+                     sameFrameCnt    <= (others => '0');
+                  elsif (sameFrameCnt < 30) then
+                     sameFrameCnt <= sameFrameCnt + 1;
+                  else
+                     video_blockVIFB <= '1';
+                  end if;
                end if;
             end if;
             
@@ -549,7 +563,6 @@ begin
    end process;
 
 end architecture;
-
 
 
 

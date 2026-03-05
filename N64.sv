@@ -461,15 +461,22 @@ begin
 end
 endfunction
 
-function automatic profile_vi_experimental_enabled(input [63:0] rom_signature);
+function automatic [1:0] profile_vi_experimental_mode(input [63:0] rom_signature);
 begin
-	profile_vi_experimental_enabled = 1'b0;
+	// 2'b00 = Off, 2'b01 = Auto, 2'b10 = Force Bob, 2'b11 = Force Weave
+	profile_vi_experimental_mode = 2'b00;
 	case (rom_signature)
 		// Add explicit per-ROM signatures here to opt in experimental VI behavior.
 		// Example:
-		// 64'h0000000000000000: profile_vi_experimental_enabled = 1'b1;
+		// 64'h0000000000000000: profile_vi_experimental_mode = 2'b01;
 		default: ;
 	endcase
+end
+endfunction
+
+function automatic profile_vi_experimental_enabled(input [63:0] rom_signature);
+begin
+	profile_vi_experimental_enabled = (profile_vi_experimental_mode(rom_signature) != 2'b00);
 end
 endfunction
 
@@ -582,6 +589,7 @@ reg        cartN64_stream_1 = 0;
 reg [31:0] rom_profile_hash = 32'h811C9DC5;
 reg [63:0] rom_profile_signature = 64'd0;
 reg        vi_exp_profile_enable = 0;
+reg  [1:0] vi_exp_profile_mode = 2'b00;
 
 localparam CARTN64_START = 16777216;
 localparam CARTGB_START  = 8388608;
@@ -630,6 +638,7 @@ always @(posedge clk_1x) begin
 		rom_profile_hash      <= 32'h811C9DC5;
 		rom_profile_signature <= 64'd0;
 		vi_exp_profile_enable <= 1'b0;
+		vi_exp_profile_mode   <= 2'b00;
 	end else begin
 		hash_base = rom_profile_hash;
 
@@ -637,6 +646,7 @@ always @(posedge clk_1x) begin
 			hash_base             = 32'h811C9DC5;
 			rom_profile_signature <= 64'd0;
 			vi_exp_profile_enable <= 1'b0;
+			vi_exp_profile_mode   <= 2'b00;
 		end
 
 		if(cartN64_stream && ioctl_wr) begin
@@ -648,6 +658,7 @@ always @(posedge clk_1x) begin
 
 		if(~cartN64_stream && cartN64_stream_1) begin
 			rom_profile_signature <= {5'd0, ioctl_addr, rom_profile_hash};
+			vi_exp_profile_mode   <= profile_vi_experimental_mode({5'd0, ioctl_addr, rom_profile_hash});
 			vi_exp_profile_enable <= profile_vi_experimental_enabled({5'd0, ioctl_addr, rom_profile_hash});
 		end
 	end
@@ -813,6 +824,7 @@ n64top
    .VI_7BITPERCOLOR(~status[104]),
    .VI_DIRECTFBMODE(clean_hdmi),
    .VI_EXPERIMENTAL_ENABLE(vi_exp_profile_enable),
+   .VI_EXPERIMENTAL_MODE(vi_exp_profile_mode),
    
    .CICTYPE(status[68:65]),
    .RAMSIZE8(~status[70]),
