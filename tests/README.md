@@ -27,6 +27,16 @@ Run with optional Quartus compile:
 tests/run_regression.sh --quartus-compile
 ```
 
+Run in CI environments without staged ROM assets:
+
+```bash
+tests/run_regression.sh --allow-missing-required-roms
+```
+
+## GitHub Actions
+- Hosted baseline checks run via `.github/workflows/regression.yml`.
+- Quartus compilation is defined in `.github/workflows/quartus-self-hosted.yml` and is intended for a self-hosted Linux runner labeled `quartus`.
+
 ## Test ROM Staging
 Place local test ROM files under `tests/roms/`.
 Expected patterns are defined in `tests/manifest/test_roms.tsv`.

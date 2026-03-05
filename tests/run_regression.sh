@@ -5,18 +5,24 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 RUN_QUARTUS=0
+ALLOW_MISSING_REQUIRED_ROMS=0
 
 for arg in "$@"; do
   case "$arg" in
     --quartus-compile)
       RUN_QUARTUS=1
       ;;
+    --allow-missing-required-roms)
+      ALLOW_MISSING_REQUIRED_ROMS=1
+      ;;
     -h|--help)
       cat <<'EOF'
-Usage: tests/run_regression.sh [--quartus-compile]
+Usage: tests/run_regression.sh [--quartus-compile] [--allow-missing-required-roms]
 
 Automated baseline checks for this repository.
   --quartus-compile   Run optional Quartus compile step (slow).
+  --allow-missing-required-roms
+                     Downgrade missing required ROM patterns to warnings.
 EOF
       exit 0
       ;;
@@ -153,8 +159,12 @@ check_test_rom_manifest() {
   shopt -u nullglob
 
   if [[ "$required_missing" -eq 1 ]]; then
-    fail "Required test ROMs are missing (see tests/manifest/test_roms.tsv)"
-    return 1
+    if [[ "$ALLOW_MISSING_REQUIRED_ROMS" -eq 1 ]]; then
+      warn "Required test ROMs are missing (allowed by flag)"
+    else
+      fail "Required test ROMs are missing (see tests/manifest/test_roms.tsv)"
+      return 1
+    fi
   fi
 
   if [[ "$found_any" -eq 0 ]]; then
