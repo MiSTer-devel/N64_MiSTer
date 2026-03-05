@@ -1,193 +1,83 @@
-# VI 480p Framebuffer Forcing Notes
+# VI 480p Forcing Plan (Active)
 
 Date: 2026-03-05
 
 ## Goal
-Explore emulator-side approaches to force a 480p framebuffer path for titles that do not naturally drive a full progressive output configuration.
+Ship a safe, per-ROM opt-in experimental VI path that can improve 480i/direct-FB output behavior without changing default behavior for other titles.
 
-## Current Behavior (Observed)
-- Direct framebuffer output is only active in "Clean HDMI" mode.
-  - `N64.sv` ties `VI_DIRECTFBMODE` to `status[105]` (`Video Out, Clean HDMI`).
-- In direct FB mode, normal VI pixel output is blanked and framebuffer output is used.
-  - `rtl/VI_videoout_async.vhd` forces black output when `VI_DIRECTFBMODE = '1'`.
-- Reported FB dimensions are derived from VI fetch/output pipeline state, not a fixed mode.
-  - `rtl/VI_videoout.vhd`
-    - `video_FB_sizeX <= ...`
-    - `video_FB_sizeY <= FetchLineCount ...`
-- Interlace combine behavior already exists through `video_blockVIFB`, but is heuristic-driven.
-  - `rtl/VI.vhd` sets `video_blockVIFB` based on repeated `VI_ORIGIN` frames and `VI_CTRL_SERRATE`.
+## Non-Negotiables
+- Default remains off for all ROMs unless explicitly profiled.
+- Behavior changes are applied through effective VI signals only; bus-visible VI registers remain unchanged.
+- Experimental behavior is intended for direct-FB (`Clean HDMI`) paths.
 
-## Relevant Hook Points
+## Active Strategy
+1. Keep the effective VI layer and mode policy in place.
+2. Use per-ROM profiles to choose mode: `Off`, `Auto`, `Force Bob`, `Force Weave`.
+3. Prefer `Auto` for first-pass title bring-up with conservative guardrails.
+4. Use runtime instrumentation (`VIX`) to observe stability and fallback behavior.
+5. Expand allowlist only after title-specific validation.
 
-### 1) VI register write path (game-visible behavior)
-- `rtl/VI.vhd` bus write case for VI registers.
-- This is where register virtualization/interception could be added if needed.
+## Current Mode Behavior
+- `Off`: native path.
+- `Auto`:
+  - only engages weave when confidence is high
+  - requires direct-FB, interlaced, width/scale checks, stable origin, and minimum stable-frame history
+  - includes hysteresis cooldown after repeated instability before re-engaging weave
+  - falls back to native path when confidence drops
+- `Force Bob`: forces bob behavior (`SERRATE` effective off, no FB block combine).
+- `Force Weave`: forces weave behavior when direct-FB/interlace preconditions are valid.
 
-### 2) Vertical fetch cadence and field behavior
-- `rtl/VI_linefetch.vhd`
-  - uses `VI_Y_SCALE_FACTOR`, `VI_Y_SCALE_OFFSET`, `VI_CTRL_SERRATE`, `interlacedField`
-  - determines line fetch rate and `FetchLineCount`.
+## Runtime Instrumentation (`VIX`)
+Overlay shown only when experimental profile is enabled:
+- `VIX Mx Shhhh Fhhhh Cxx Ux`
 
-### 3) Line processing and FB packing
-- `rtl/VI_lineProcess.vhd`
-  - packs pixels into `VIFBfifo_*`
-  - currently writes every other pixel pair for direct FB flow (`fb_count` behavior).
+Fields:
+- `Mx`: mode (`A`, `B`, `W`, `O`)
+- `Shhhh`: low 16 bits of profile signature
+- `Fhhhh`: fallback counter (saturates at `FFFF`)
+- `Cxx`: `Auto` cooldown frames remaining
+- `Ux`: `Auto` instability streak bucket
 
-### 4) Reported FB dimensions
-- `rtl/VI_videoout.vhd`
-  - `video_FB_sizeX`, `video_FB_sizeY` are final dimensions exported to MiSTer FB interface.
+## Status
+Last updated: 2026-03-05
 
-### 5) DDR3 write path for VI framebuffer
-- `rtl/DDR3Mux.vhd`
-  - writes VI FB FIFO payload into DDR3 at mapped FB addresses.
+- [x] Effective VI layer scaffolded
+- [x] Mode policy wired (`Off/Auto/Bob/Weave`)
+- [x] Runtime instrumentation overlay added
+- [x] Initial `Auto` guardrails implemented
+- [x] `Auto` hysteresis cooldown implemented
+- [x] First per-ROM profile entry added
+- [ ] Retail compatibility matrix complete
+- [ ] Allowlist expansion complete
 
-## Option Set
+## Current Profile Entries
+- `64'h0080000047C44157` -> `Auto` (`Super Mario 64 (USA)`)
 
-### Option A: Force existing interlace-combine path
-Low code risk, fastest to prototype.
-
-- Add a toggle that forces combine semantics instead of relying on `video_blockVIFB` heuristic.
-- Keep most existing fetch/pack behavior and expose "forced progressive" for interlaced games.
-- Risk: weaving/combing artifacts on motion and title-dependent visual issues.
-
-### Option B: Explicit 2-field 480-line compositor
-Best quality/control, higher implementation cost.
-
-- Accumulate both fields into one deterministic 480-line output buffer.
-- Support explicit bob/weave mode selection.
-- Expected tradeoffs:
-  - extra buffering/control complexity
-  - likely 1-field latency increase
-
-### Option C: VI register virtualization (effective override only)
-Most invasive to behavior, can mimic ROM patch style logic in hardware.
-
-- Preserve game-visible register reads while overriding "effective" VI parameters in fetch/output path.
-- Could force scaling/field behavior without patching ROM.
-- Highest compatibility risk due to timing and game assumptions.
-
-### Option D: Per-game profile gating for A/B/C
-Recommended for safe rollout.
-
-- Enable forcing only for known-good titles (hash/header match).
-- Current OSD advertises DB/patch controls, but dynamic `status_set` is disabled in top-level integration.
-- If per-game policy is desired, explicit profile plumbing is needed.
-- For experimental rollout, this should be explicit per-ROM opt-in (default disabled).
-
-### Option E: Non-FB baseline using bob-deinterlace output only
-Useful as a quick visual baseline, not true FB forcing.
-
-- Can be used for comparison before changing VI fetch/composition internals.
-
-## Recommended Staged Plan (Option C Primary)
-1. Create an "effective VI" layer (Option C) with no behavior change:
-   - keep bus-visible VI registers unchanged for software reads/writes
-   - route VI fetch/output from mirrored "effective" signals initially equal to original.
-2. Add policy controls on effective VI only:
-   - `Off / Auto / Force Bob / Force Weave`
-   - active only when `VI_DIRECTFBMODE = '1'`.
-3. Add instrumentation:
-   - runtime counters/log overlay for `FetchLineCount`, interlace field toggles, inferred mode, and fallback events.
-4. Run regression and compatibility passes:
-   - test ROM suite first (`tests/run_regression.sh`)
-   - then retail matrix (480i/interlaced + 240p/VI-heavy + known patchable titles).
-5. Add strict guardrails for `Auto`:
-   - only engage when mode confidence is high
-   - instant fallback to native path on instability/artifacts.
-6. Add per-title policy gating once stable.
-7. Revisit Option B compositor only if Option C cannot meet quality/compatibility targets.
-
-## Rollout Policy (Agreed)
-- Experimental features are disabled by default.
-- Enable policy is explicit per ROM file/profile entry only (no global auto-enable).
-- Profile identity should prefer ROM hash as the primary key (header as optional fallback/metadata).
-- User-facing wording should clearly mark this as experimental.
-
-### Current Profile Implementation
-- Location: `N64.sv`
-- Signature: `{5'b0, rom_size_bytes[26:0], fnv1a32(ioctl ROM byte stream)}`
-- Lookup functions:
-  - `profile_vi_experimental_mode(...)` -> `Off/Auto/Force Bob/Force Weave`
-  - `profile_vi_experimental_enabled(...)` (derived from mode != Off)
-- Default behavior: no entries enabled (all ROMs disabled, mode `Off`).
-
-Currently implemented mode behavior (first incremental step):
-- `Off` / `Auto`: pass-through (native behavior)
-- `Force Bob`: effective `VI_CTRL_SERRATE = 0` and `video_blockVIFB = 0`
-- `Force Weave`: effective `VI_CTRL_SERRATE = 1` and force `video_blockVIFB = 1` in direct-FB mode
-
-### Runtime Instrumentation (Current)
-- A lightweight on-screen debug line is shown while an experimental profile is active:
-  - `VIX Mx Shhhh Fhhhh`
-- Field meanings:
-  - `Mx`: active profile mode (`A` = Auto, `B` = Force Bob, `W` = Force Weave)
-  - `Shhhh`: low 16 bits of the ROM profile signature (hex)
-  - `Fhhhh`: fallback counter (hex, saturating at `FFFF`)
-- Current fallback counter behavior:
-  - increments once per frame when an experimental profile is enabled but explicit Bob/Weave override is not actively applied
-  - this includes `Auto` mode (currently pass-through)
-  - also includes cases where Clean HDMI/direct-FB is off, since experimental VI policy is intended for the direct-FB path
-
-To opt in a ROM:
-1. Compute its signature:
+## Per-ROM Opt-In Workflow
+1. Compute signature:
    - `tests/rom_signature.py /path/to/rom.z64`
-2. Add a `case` entry in `profile_vi_experimental_mode(...)` selecting desired mode.
-3. Rebuild core and retest.
+   - optional mode emit: `--mode auto|bob|weave|off`
+2. Add `case` entry in `profile_vi_experimental_mode(...)` in `N64.sv`.
+3. Rebuild and test on-device.
+4. Review `VIX` overlay values for stability/fallback trends.
 
-## Reference Test ROMs
-These are useful for pre-flight regression before retail game testing.
+## Validation Workflow
+Automated baseline:
+- `tests/run_regression.sh --allow-missing-required-roms`
 
-- Nintendo 64 test cart dump package (runtime + reflasher):
-  - https://www.gamingalexandria.com/wp/2023/07/nintendo-64-test-cart-rom/
-  - https://archive.org/details/n64_testcart
-- Existing CPU correctness suites (for instruction/exception sanity):
-  - Krom CPU tests (already referenced in code comments)
+On-device checks:
+- verify stable framebuffer dimensions
+- verify no new VI processing errors
+- verify motion behavior (no severe combing/jitter regressions)
+- compare `Auto` vs forced modes where needed
 
-Suggested use:
-1. Run automated regression script: `tests/run_regression.sh`
-2. Run N64 test cart ROM on core and record observed pass/fail
-3. Run a short retail game matrix for visual/timing regressions
+Suggested matrix categories:
+- known 480i/interlaced titles
+- VI-heavy 240p titles (regression check)
+- candidate titles previously improved by ROM hacks
 
-## Validation Checklist
-- Confirm `FB_WIDTH`/`FB_HEIGHT` are stable frame-to-frame.
-- Verify no new `error_vi`/line processing timeout behavior.
-- Check field order correctness (no vertical jitter on motion).
-- Compare latency and smoothness between bob/weave/progressive paths.
-- Confirm non-Clean-HDMI mode behavior is unchanged.
-
-## Candidate 480i/Interlaced Test Titles
-Note: this list is for validation targeting only. It is not exhaustive, and some titles switch between progressive/interlaced depending on scene/menu/settings.
-
-Likely 640x480i or dynamic 480i candidates:
-- Pokemon Stadium 2
-- Star Wars: Episode I Racer
-- FIFA 99 ("Super High" mode)
-- Vigilante 8 / Vigilante 8: 2nd Offense (hidden ultra modes)
-- Resident Evil 2 (mixed progressive/interlaced by scene)
-
-Additional interlaced high-res mode candidates:
-- 40 Winks
-- Armorines: Project S.W.A.R.M.
-- Castlevania: Legacy of Darkness
-- Command & Conquer
-- Daikatana
-- Duke Nukem: Zero Hour
-- Hybrid Heaven
-- Indiana Jones and the Infernal Machine
-- Re-Volt
-- Shadow Man
-- South Park
-- Star Wars: Battle for Naboo
-- Star Wars: Rogue Squadron
-- Turok 2: Seeds of Evil
-- Turok 3: Shadow of Oblivion
-- Turok: Rage Wars
-
-Practical impact:
-- This is a relatively small subset of the N64 library.
-- Because of that, Option A (forced interlace handling) is useful for targeted testing, but likely not the best standalone long-term solution for broad image-quality improvement.
-
-## Open Questions
-- Should `Auto` stay debug-only until a minimum per-ROM allowlist size is reached?
-- Should fallback trigger from hard metrics only (timing/state) or include visual heuristics?
-- What is the acceptance bar to promote from experimental opt-in to broader availability?
+## Next Steps
+1. Run and log `Super Mario 64 (USA)` observations with `VIX` fields.
+2. Add 2-5 additional candidate ROM profiles in `Auto` and compare behavior.
+3. Tune `Auto` thresholds/cooldown from observed fallback patterns.
+4. Promote titles from `Auto` to forced modes only if behavior is consistently better.

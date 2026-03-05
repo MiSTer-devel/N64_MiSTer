@@ -44,6 +44,8 @@ entity VI_videoout is
       VI_EXPERIMENTAL_MODE             : in  unsigned(1 downto 0);
       VI_EXPERIMENTAL_SIGNATURE        : in  unsigned(15 downto 0);
       VI_EXPERIMENTAL_FALLBACKS        : in  unsigned(15 downto 0);
+      VI_EXPERIMENTAL_AUTO_COOLDOWN    : in  unsigned(7 downto 0);
+      VI_EXPERIMENTAL_AUTO_UNSTABLE    : in  unsigned(2 downto 0);
                   
       VI_CTRL_TYPE                     : in  unsigned(1 downto 0);
       VI_CTRL_AA_MODE                  : in  unsigned(1 downto 0);
@@ -229,7 +231,7 @@ architecture arch of VI_videoout is
    signal overlay_error_ena   : std_logic;
 
    signal vi_exp_modechar     : unsigned(7 downto 0);
-   signal vi_exp_text         : unsigned(143 downto 0);
+   signal vi_exp_text         : unsigned(199 downto 0);
    signal overlay_vi_exp_data : std_logic_vector(23 downto 0);
    signal overlay_vi_exp_ena  : std_logic;
    
@@ -670,9 +672,13 @@ begin
                   to_unsigned(" S") &
                   conv_number(VI_EXPERIMENTAL_SIGNATURE) &
                   to_unsigned(" F") &
-                  conv_number(VI_EXPERIMENTAL_FALLBACKS);
+                  conv_number(VI_EXPERIMENTAL_FALLBACKS) &
+                  to_unsigned(" C") &
+                  conv_number(VI_EXPERIMENTAL_AUTO_COOLDOWN) &
+                  to_unsigned(" U") &
+                  conv_number(resize(VI_EXPERIMENTAL_AUTO_UNSTABLE, 4));
 
-   ioverlayVIExp : entity work.VI_overlay generic map (18, 4, 26, x"007000")
+   ioverlayVIExp : entity work.VI_overlay generic map (25, 4, 26, x"007000")
    port map
    (
       clk                    => clkvid,
@@ -693,7 +699,6 @@ begin
                    (others => '0');
    
 end architecture;
-
 
 
 

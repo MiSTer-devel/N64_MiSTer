@@ -48,4 +48,4 @@ To compute a signature for the experimental VI allowlist:
 tests/rom_signature.py /path/to/your.rom.z64
 ```
 
-Use the printed `case` line in `N64.sv` inside `profile_vi_experimental_enabled(...)`.
+Use the printed `case` line in `N64.sv` inside `profile_vi_experimental_mode(...)`.

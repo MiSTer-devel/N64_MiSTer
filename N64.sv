@@ -469,6 +469,7 @@ begin
 		// Add explicit per-ROM signatures here to opt in experimental VI behavior.
 		// Example:
 		// 64'h0000000000000000: profile_vi_experimental_mode = 2'b01;
+		64'h0080000047C44157: profile_vi_experimental_mode = 2'b01; // Super Mario 64 (USA)
 		default: ;
 	endcase
 end
