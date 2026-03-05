@@ -3,10 +3,8 @@ name: Regression
 on:
   pull_request:
   push:
-    branches:
+    branches-ignore:
       - main
-      - master
-      - 'codex/**'
   workflow_dispatch:
 
 jobs:
