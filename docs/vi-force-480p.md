@@ -123,11 +123,13 @@ Currently implemented mode behavior:
 
 ### Runtime Instrumentation (Current)
 - A lightweight on-screen debug line is shown while an experimental profile is active:
-  - `VIX Mx Shhhh Fhhhh`
+  - `VIX Mx Shhhh Fhhhh Cxx Ux`
 - Field meanings:
   - `Mx`: active profile mode (`A` = Auto, `B` = Force Bob, `W` = Force Weave)
   - `Shhhh`: low 16 bits of the ROM profile signature (hex)
   - `Fhhhh`: fallback counter (hex, saturating at `FFFF`)
+  - `Cxx`: `Auto` cooldown frames remaining (hex)
+  - `Ux`: current `Auto` instability streak bucket (hex)
 - Current fallback counter behavior:
   - increments once per frame when `Auto` falls back to native path
   - increments for `Force Weave` when direct-FB is off or interlace preconditions are not met
