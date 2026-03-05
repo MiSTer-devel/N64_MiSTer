@@ -404,21 +404,30 @@ begin
                   end if;
                end if;
 
-               if (VI_EXPERIMENTAL_ENABLE = '1') then
-                  if (VI_DIRECTFBMODE = '0' or (VI_EXPERIMENTAL_MODE /= "10" and VI_EXPERIMENTAL_MODE /= "11")) then
-                     if (vi_exp_fallback_count < x"FFFF") then
-                        vi_exp_fallback_count <= vi_exp_fallback_count + 1;
-                     end if;
-                  end if;
-               end if;
-
                if (VI_EXPERIMENTAL_ENABLE = '1' and VI_EXPERIMENTAL_MODE = "10") then
                   video_blockVIFB <= '0';
                   sameFrameCnt    <= (others => '0');
                elsif (VI_EXPERIMENTAL_ENABLE = '1' and VI_EXPERIMENTAL_MODE = "11" and VI_DIRECTFBMODE = '1' and VIE_CTRL_SERRATE = '1') then
                   video_blockVIFB <= '1';
                   sameFrameCnt    <= (others => '0');
+               -- Conservative auto guardrail:
+               -- only force weave for stable, interlaced, high-res direct-FB scenes.
+               elsif (VI_EXPERIMENTAL_ENABLE = '1' and VI_EXPERIMENTAL_MODE = "01" and VI_DIRECTFBMODE = '1' and
+                      VIE_CTRL_SERRATE = '1' and VIE_WIDTH >= 512 and VIE_Y_SCALE_FACTOR <= x"400" and
+                      sameFrameCnt >= 2 and VIE_ORIGIN(23 downto 12) = fps_VI_ORIGIN_last(23 downto 12)) then
+                  video_blockVIFB <= '1';
+                  sameFrameCnt    <= (others => '0');
                else
+                  if (VI_EXPERIMENTAL_ENABLE = '1' and
+                     (
+                       VI_EXPERIMENTAL_MODE = "01" or
+                       (VI_EXPERIMENTAL_MODE = "11" and (VI_DIRECTFBMODE = '0' or VIE_CTRL_SERRATE = '0'))
+                     )) then
+                     if (vi_exp_fallback_count < x"FFFF") then
+                        vi_exp_fallback_count <= vi_exp_fallback_count + 1;
+                     end if;
+                  end if;
+
                   if (VIE_ORIGIN(23 downto 12) /= fps_VI_ORIGIN_last(23 downto 12) or VIE_CTRL_SERRATE = '0') then
                      video_blockVIFB <= '0';
                      sameFrameCnt    <= (others => '0');
@@ -578,5 +587,4 @@ begin
    end process;
 
 end architecture;
-
 
