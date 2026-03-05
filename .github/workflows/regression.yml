@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - master
+      - 'codex/**'
   workflow_dispatch:
 
 jobs:
