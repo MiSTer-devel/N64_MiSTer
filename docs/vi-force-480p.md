@@ -116,6 +116,7 @@ Currently implemented mode behavior:
 - `Auto`: conservative guarded weave engage
   - requires direct-FB on, interlaced (`SERRATE=1`), width >= 512, `Y_SCALE_FACTOR <= 0x400`,
     stable origin, and at least 2 prior stable frames
+  - includes hysteresis: repeated unstable frames trigger a short cooldown before reattempting weave
   - otherwise falls back to native behavior
 - `Force Bob`: effective `VI_CTRL_SERRATE = 0` and `video_blockVIFB = 0`
 - `Force Weave`: effective `VI_CTRL_SERRATE = 1` and force `video_blockVIFB = 1` in direct-FB mode
@@ -131,6 +132,10 @@ Currently implemented mode behavior:
   - increments once per frame when `Auto` falls back to native path
   - increments for `Force Weave` when direct-FB is off or interlace preconditions are not met
   - saturates at `FFFF`
+
+Current `Auto` hysteresis behavior:
+- tracks unstable `Auto` fallback streaks
+- after repeated instability, enters a ~30-frame cooldown before weave can re-engage
 
 To opt in a ROM:
 1. Compute its signature:
