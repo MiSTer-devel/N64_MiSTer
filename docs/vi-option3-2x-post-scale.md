@@ -193,6 +193,7 @@ Acceptance:
 1. Capture a simulation trace (`rdp_n64_sim.txt`) for a representative scene.
 2. Run trace analysis:
    - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt`
+   - check `aggregate_fillrect_bounds_px` in the summary to validate region alignment against expected UI/gameplay areas
 3. Read recommendation:
    - `fill_only` => use shadow mode `2'b01`
    - `fill_copy` => use shadow mode `2'b10`

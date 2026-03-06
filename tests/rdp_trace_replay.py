@@ -100,11 +100,29 @@ class FrameState:
     checksum: int = 0
     summary_count: int | None = None
     summary_checksum: int | None = None
+    fillrect_count: int = 0
+    fillrect_x0: int | None = None
+    fillrect_x1: int | None = None
+    fillrect_y0: int | None = None
+    fillrect_y1: int | None = None
 
 
 def _opcode_from_command(data64: int) -> int:
     # Matches RTL decode in rtl/RDP_command.vhd: CommandData(61 downto 56)
     return (data64 >> 56) & 0x3F
+
+
+def _fillrect_bounds_px(data64: int) -> tuple[int, int, int, int]:
+    # Command fields mirror rtl/RDP.vhd shadow metadata decode.
+    xh = (data64 >> 44) & 0xFFF
+    xl = (data64 >> 12) & 0xFFF
+    yh = data64 & 0xFFF
+    yl = (data64 >> 32) & 0xFFF
+    x0 = min(xh, xl) >> 2
+    x1 = max(xh, xl) >> 2
+    y0 = min(yh, yl) >> 2
+    y1 = max(yh, yl) >> 2
+    return (x0, x1, y0, y1)
 
 
 def _sorted_histogram_items(hist: dict[int, int]) -> list[dict]:
@@ -162,8 +180,10 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
     opcode_hist: dict[int, int] = {}
     subset_unsupported_hist: dict[int, int] = {}
     subset_violation_frames: set[int] = set()
+    fillrect_frames: set[int] = set()
 
     total_commands = 0
+    fillrect_commands = 0
     total_frame_summaries = 0
     bad_global_idx = 0
     bad_frame_cmd_idx = 0
@@ -172,6 +192,7 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
     bad_frame_summary_checksum = 0
     bad_parse_lines = 0
     subset_unsupported_commands = 0
+    fillrect_global_bounds: tuple[int, int, int, int] | None = None
 
     expected_global_idx = 1
     allowed_opcodes = SUBSETS.get(subset) if subset is not None else None
@@ -210,6 +231,32 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
 
                 opcode = _opcode_from_command(data64)
                 opcode_hist[opcode] = opcode_hist.get(opcode, 0) + 1
+                if opcode == 0x36:
+                    fillrect_commands += 1
+                    fillrect_frames.add(frame_id)
+                    x0, x1, y0, y1 = _fillrect_bounds_px(data64)
+                    state.fillrect_count += 1
+                    if state.fillrect_x0 is None:
+                        state.fillrect_x0 = x0
+                        state.fillrect_x1 = x1
+                        state.fillrect_y0 = y0
+                        state.fillrect_y1 = y1
+                    else:
+                        state.fillrect_x0 = min(state.fillrect_x0, x0)
+                        state.fillrect_x1 = max(state.fillrect_x1, x1)
+                        state.fillrect_y0 = min(state.fillrect_y0, y0)
+                        state.fillrect_y1 = max(state.fillrect_y1, y1)
+
+                    if fillrect_global_bounds is None:
+                        fillrect_global_bounds = (x0, x1, y0, y1)
+                    else:
+                        gx0, gx1, gy0, gy1 = fillrect_global_bounds
+                        fillrect_global_bounds = (
+                            min(gx0, x0),
+                            max(gx1, x1),
+                            min(gy0, y0),
+                            max(gy1, y1),
+                        )
                 if allowed_opcodes is not None and opcode not in allowed_opcodes:
                     subset_unsupported_commands += 1
                     subset_unsupported_hist[opcode] = subset_unsupported_hist.get(opcode, 0) + 1
@@ -265,6 +312,19 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
         "frame_command_count_min": min(command_counts) if command_counts else 0,
         "frame_command_count_max": max(command_counts) if command_counts else 0,
         "frame_command_count_avg": (mean(command_counts) if command_counts else 0.0),
+        "fillrect_commands": fillrect_commands,
+        "frames_with_fillrect": len(fillrect_frames),
+        "sample_frames_with_fillrect": _first_n_sorted(fillrect_frames, limit=16),
+        "fillrect_bounds_px": (
+            {
+                "x0": fillrect_global_bounds[0],
+                "x1": fillrect_global_bounds[1],
+                "y0": fillrect_global_bounds[2],
+                "y1": fillrect_global_bounds[3],
+            }
+            if fillrect_global_bounds is not None
+            else None
+        ),
         "mismatches": {
             "global_index": bad_global_idx,
             "frame_command_index": bad_frame_cmd_idx,
@@ -306,6 +366,17 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
                 "summary_checksum": (
                     f"0x{frames[fid].summary_checksum:08X}"
                     if frames[fid].summary_checksum is not None
+                    else None
+                ),
+                "fillrect_count": frames[fid].fillrect_count,
+                "fillrect_bounds_px": (
+                    {
+                        "x0": frames[fid].fillrect_x0,
+                        "x1": frames[fid].fillrect_x1,
+                        "y0": frames[fid].fillrect_y0,
+                        "y1": frames[fid].fillrect_y1,
+                    }
+                    if frames[fid].fillrect_count > 0
                     else None
                 ),
             }
@@ -373,6 +444,23 @@ def main() -> int:
     print(f"Opcodes observed: {len(summary['opcode_histogram'])}")
     for item in summary["opcode_histogram"][:10]:
         print(f"  {item['opcode']} {item['name']}: {item['count']}")
+    print(
+        "Fill rectangles: "
+        f"{summary['fillrect_commands']} commands across "
+        f"{summary['frames_with_fillrect']} frames"
+    )
+    if summary["sample_frames_with_fillrect"]:
+        print(
+            "  sample_frames_with_fillrect: "
+            + ", ".join(str(fid) for fid in summary["sample_frames_with_fillrect"])
+        )
+    if summary["fillrect_bounds_px"] is not None:
+        bounds = summary["fillrect_bounds_px"]
+        print(
+            "  aggregate_fillrect_bounds_px: "
+            f"x={bounds['x0']}..{bounds['x1']} "
+            f"y={bounds['y0']}..{bounds['y1']}"
+        )
 
     recommendation = summary["recommended_shadow_mode"]
     print(

@@ -98,3 +98,5 @@ Optional outputs:
   - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt --subset fill_only --strict-subset`
 - Print shadow-mode recommendation:
   - always included in summary (`fill_only`, `fill_copy`, or `off`)
+- Inspect fill-rectangle region coverage (decoded to VI pixel bounds):
+  - included in replay summary as `aggregate_fillrect_bounds_px`
