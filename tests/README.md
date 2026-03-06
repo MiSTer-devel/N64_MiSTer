@@ -6,6 +6,7 @@ The scripts here provide an automated baseline so changes can be checked consist
 ## What Is Automated
 - RTL project file integrity checks (`files.qip`, `rtl/N64.qip`)
 - Merge-marker and basic repository hygiene checks
+- Python syntax checks for `tests/*.py` tooling
 - Test ROM presence checks from a manifest
 - Optional Quartus compile pass (if toolchain is installed)
 

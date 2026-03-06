@@ -163,6 +163,28 @@ check_project_file_refs() {
   pass "All project-referenced files exist"
 }
 
+check_python_tool_syntax() {
+  local py_file
+  local failed=0
+
+  for py_file in "$ROOT_DIR"/tests/*.py; do
+    if [[ ! -f "$py_file" ]]; then
+      continue
+    fi
+    if ! python3 -m py_compile "$py_file" >/dev/null 2>&1; then
+      echo "[INFO] Python syntax check failed: ${py_file#$ROOT_DIR/}" >&2
+      failed=1
+    fi
+  done
+
+  if [[ "$failed" -eq 1 ]]; then
+    fail "Python test tooling has syntax errors"
+    return 1
+  fi
+
+  pass "Python test tooling syntax"
+}
+
 check_test_rom_manifest() {
   local manifest="$ROOT_DIR/tests/manifest/test_roms.tsv"
   local rom_dir="$ROOT_DIR/tests/roms"
@@ -262,6 +284,7 @@ run_rdp_trace_check() {
 echo "== N64_MiSTer Regression =="
 check_merge_markers || true
 check_project_file_refs || true
+check_python_tool_syntax || true
 check_test_rom_manifest || true
 run_rdp_trace_check || true
 run_quartus_compile || true
