@@ -11,6 +11,12 @@ entity VI_shadow_stub is
       pixel_in_g  : in  std_logic_vector(7 downto 0);
       pixel_in_b  : in  std_logic_vector(7 downto 0);
       fillrect_count : in unsigned(15 downto 0);
+      texrect_count : in unsigned(15 downto 0);
+      texrect_valid : in std_logic;
+      texrect_x0 : in unsigned(9 downto 0);
+      texrect_x1 : in unsigned(9 downto 0);
+      texrect_y0 : in unsigned(8 downto 0);
+      texrect_y1 : in unsigned(8 downto 0);
       fill_color  : in  unsigned(23 downto 0);
       fillrect_valid : in std_logic;
       fillrect_x0 : in unsigned(9 downto 0);
@@ -105,6 +111,31 @@ architecture arch of VI_shadow_stub is
       return accum;
    end function;
 
+   function enhance_copy_component(
+      component : std_logic_vector(7 downto 0)
+   ) return unsigned is
+      variable value : unsigned(7 downto 0);
+      variable ret   : unsigned(7 downto 0);
+   begin
+      value := unsigned(component);
+
+      if (value >= to_unsigned(16#80#, 8)) then
+         if (value > to_unsigned(16#F3#, 8)) then
+            ret := to_unsigned(16#FF#, 8);
+         else
+            ret := value + to_unsigned(12, 8);
+         end if;
+      else
+         if (value < to_unsigned(12, 8)) then
+            ret := (others => '0');
+         else
+            ret := value - to_unsigned(12, 8);
+         end if;
+      end if;
+
+      return resize(ret, 10);
+   end function;
+
    signal checker : std_logic;
 begin
    checker <= xpos(0) xor ypos(0);
@@ -115,11 +146,15 @@ begin
       variable sample_hit : boolean;
       variable aggregate_hit : boolean;
       variable sample_fill_color : unsigned(23 downto 0);
-      variable coverage_count : unsigned(2 downto 0);
+      variable fill_coverage_count : unsigned(2 downto 0);
+      variable texrect_coverage_count : unsigned(2 downto 0);
       variable native_weight : unsigned(2 downto 0);
       variable fill_sum_r : unsigned(9 downto 0);
       variable fill_sum_g : unsigned(9 downto 0);
       variable fill_sum_b : unsigned(9 downto 0);
+      variable copy_sum_r : unsigned(9 downto 0);
+      variable copy_sum_g : unsigned(9 downto 0);
+      variable copy_sum_b : unsigned(9 downto 0);
       variable native_mul_r : unsigned(9 downto 0);
       variable native_mul_g : unsigned(9 downto 0);
       variable native_mul_b : unsigned(9 downto 0);
@@ -132,14 +167,20 @@ begin
       pixel_out_b <= pixel_in_b;
 
       if (enable = '1') then
-         coverage_count := (others => '0');
+         fill_coverage_count := (others => '0');
+         texrect_coverage_count := (others => '0');
          fill_sum_r := (others => '0');
          fill_sum_g := (others => '0');
          fill_sum_b := (others => '0');
+         copy_sum_r := (others => '0');
+         copy_sum_g := (others => '0');
+         copy_sum_b := (others => '0');
 
          -- Rasterize four 2x subpixels per output pixel. This keeps the current
          -- native timing while making the fill-rectangle subset genuinely
-         -- command-driven and internally supersampled.
+         -- command-driven and internally supersampled. In copy mode, texrect
+         -- coverage uses a bounded placeholder enhancement until full texture
+         -- fetch/shade replay exists.
          for sy in 0 to 1 loop
             for sx in 0 to 1 loop
                sample_x := (resize(xpos, 11) sll 1) + to_unsigned(sx, 11);
@@ -173,16 +214,25 @@ begin
                end if;
 
                if (sample_hit) then
-                  coverage_count := coverage_count + 1;
+                  fill_coverage_count := fill_coverage_count + 1;
                   fill_sum_r := fill_sum_r + resize(sample_fill_color(23 downto 16), 10);
                   fill_sum_g := fill_sum_g + resize(sample_fill_color(15 downto 8), 10);
                   fill_sum_b := fill_sum_b + resize(sample_fill_color(7 downto 0), 10);
+               elsif (
+                  shadow_mode = "10" and
+                  texrect_count /= 0 and
+                  inside_fillrect_2x(sample_x, sample_y, texrect_valid, texrect_x0, texrect_x1, texrect_y0, texrect_y1)
+               ) then
+                  texrect_coverage_count := texrect_coverage_count + 1;
+                  copy_sum_r := copy_sum_r + enhance_copy_component(pixel_in_r);
+                  copy_sum_g := copy_sum_g + enhance_copy_component(pixel_in_g);
+                  copy_sum_b := copy_sum_b + enhance_copy_component(pixel_in_b);
                end if;
             end loop;
          end loop;
 
-         if (coverage_count /= 0) then
-            native_weight := to_unsigned(4, 3) - coverage_count;
+         if (fill_coverage_count /= 0) then
+            native_weight := to_unsigned(4, 3) - fill_coverage_count;
             native_mul_r := mul_u8_by_weight(pixel_in_r, native_weight);
             native_mul_g := mul_u8_by_weight(pixel_in_g, native_weight);
             native_mul_b := mul_u8_by_weight(pixel_in_b, native_weight);
@@ -190,6 +240,19 @@ begin
             blend_r := native_mul_r + fill_sum_r;
             blend_g := native_mul_g + fill_sum_g;
             blend_b := native_mul_b + fill_sum_b;
+
+            pixel_out_r <= std_logic_vector(blend_r(9 downto 2));
+            pixel_out_g <= std_logic_vector(blend_g(9 downto 2));
+            pixel_out_b <= std_logic_vector(blend_b(9 downto 2));
+         elsif (texrect_coverage_count /= 0 and shadow_mode = "10") then
+            native_weight := to_unsigned(4, 3) - texrect_coverage_count;
+            native_mul_r := mul_u8_by_weight(pixel_in_r, native_weight);
+            native_mul_g := mul_u8_by_weight(pixel_in_g, native_weight);
+            native_mul_b := mul_u8_by_weight(pixel_in_b, native_weight);
+
+            blend_r := native_mul_r + copy_sum_r;
+            blend_g := native_mul_g + copy_sum_g;
+            blend_b := native_mul_b + copy_sum_b;
 
             pixel_out_r <= std_logic_vector(blend_r(9 downto 2));
             pixel_out_g <= std_logic_vector(blend_g(9 downto 2));

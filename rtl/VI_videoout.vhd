@@ -52,6 +52,11 @@ entity VI_videoout is
       VI_SHADOW_UNSUPPORTED_CMDS       : in  unsigned(15 downto 0);
       VI_SHADOW_FILLRECT_COUNT         : in  unsigned(15 downto 0);
       VI_SHADOW_TEXRECT_COUNT          : in  unsigned(15 downto 0);
+      VI_SHADOW_TEXRECT_VALID          : in  std_logic;
+      VI_SHADOW_TEXRECT_X0             : in  unsigned(9 downto 0);
+      VI_SHADOW_TEXRECT_X1             : in  unsigned(9 downto 0);
+      VI_SHADOW_TEXRECT_Y0             : in  unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT_Y1             : in  unsigned(8 downto 0);
       VI_SHADOW_FILL_COLOR             : in  unsigned(23 downto 0);
       VI_SHADOW_FILLRECT_VALID         : in  std_logic;
       VI_SHADOW_FILLRECT_X0            : in  unsigned(9 downto 0);
@@ -354,6 +359,12 @@ begin
       pixel_in_g  => videoout_out.g,
       pixel_in_b  => videoout_out.b,
       fillrect_count => VI_SHADOW_FILLRECT_COUNT,
+      texrect_count => VI_SHADOW_TEXRECT_COUNT,
+      texrect_valid => VI_SHADOW_TEXRECT_VALID,
+      texrect_x0 => VI_SHADOW_TEXRECT_X0,
+      texrect_x1 => VI_SHADOW_TEXRECT_X1,
+      texrect_y0 => VI_SHADOW_TEXRECT_Y0,
+      texrect_y1 => VI_SHADOW_TEXRECT_Y1,
       fill_color  => VI_SHADOW_FILL_COLOR,
       fillrect_valid => VI_SHADOW_FILLRECT_VALID,
       fillrect_x0 => VI_SHADOW_FILLRECT_X0,
