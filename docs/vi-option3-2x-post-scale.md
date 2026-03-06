@@ -59,6 +59,7 @@ Changes:
 - Fallback reason encoding (current PoC):
   - `1`: unsupported VI mode (`VI_CTRL_TYPE=0` or zero width)
   - `2`: VI processing error (`error_linefetch`/`error_outProcess`)
+  - `3`: frame uses RDP commands outside current shadow subset
 
 Acceptance:
 - Overlay shows stable counters in `Off` mode.

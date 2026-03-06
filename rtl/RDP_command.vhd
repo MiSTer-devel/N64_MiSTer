@@ -25,6 +25,8 @@ entity RDP_command is
       poly_start              : out std_logic := '0';
       poly_loading_mode       : out std_logic := '0';
       sync_full               : out std_logic := '0';  
+      shadow_cmd_done         : out std_logic := '0';
+      shadow_cmd_opcode       : out unsigned(5 downto 0) := (others => '0');
       
       -- synthesis translate_off
       export_command_done     : out std_logic := '0'; 
@@ -129,8 +131,10 @@ begin
                      cmdfifo_Empty when (state = EVALTEXTURE) else 
                      cmdfifo_Empty when (state = EVALZBUFFER) else 
                      '0';
-   
+
    CommandData <= unsigned(cmdfifo_Dout);
+   shadow_cmd_done   <= '1' when (state = EVALCOMMAND) else '0';
+   shadow_cmd_opcode <= CommandData(61 downto 56);
 
    -- synthesis translate_off
    export_command_done <=  '1' when (state = EVALCOMMAND) else '0';                 
@@ -681,7 +685,6 @@ begin
    end process;
 
 end architecture;
-
 
 
 

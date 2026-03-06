@@ -42,6 +42,8 @@ entity VI is
       VI_EXPERIMENTAL_SIGNATURE : in unsigned(15 downto 0);
       VI_SHADOW_ENABLE : in  std_logic;
       VI_SHADOW_MODE   : in  unsigned(1 downto 0);
+      VI_SHADOW_FRAME_STROBE : in std_logic;
+      VI_SHADOW_UNSUPPORTED_CMDS : in unsigned(15 downto 0);
       
       errorEna         : in  std_logic;
       errorCode        : in  unsigned(31 downto 0);
@@ -527,6 +529,8 @@ begin
       VI_EXPERIMENTAL_AUTO_UNSTABLE    => vi_exp_auto_unstable_cnt,
       VI_SHADOW_ENABLE                 => VI_SHADOW_ENABLE,
       VI_SHADOW_MODE                   => VI_SHADOW_MODE,
+      VI_SHADOW_FRAME_STROBE           => VI_SHADOW_FRAME_STROBE,
+      VI_SHADOW_UNSUPPORTED_CMDS       => VI_SHADOW_UNSUPPORTED_CMDS,
                   
       VI_CTRL_TYPE                     => VIE_CTRL_TYPE,
       VI_CTRL_AA_MODE                  => VIE_CTRL_AA_MODE,

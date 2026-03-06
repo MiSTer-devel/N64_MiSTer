@@ -48,6 +48,8 @@ entity VI_videoout is
       VI_EXPERIMENTAL_AUTO_UNSTABLE    : in  unsigned(2 downto 0);
       VI_SHADOW_ENABLE                 : in  std_logic;
       VI_SHADOW_MODE                   : in  unsigned(1 downto 0);
+      VI_SHADOW_FRAME_STROBE           : in  std_logic;
+      VI_SHADOW_UNSUPPORTED_CMDS       : in  unsigned(15 downto 0);
                   
       VI_CTRL_TYPE                     : in  unsigned(1 downto 0);
       VI_CTRL_AA_MODE                  : in  unsigned(1 downto 0);
@@ -285,6 +287,7 @@ begin
    shadow_guard_unsupported <= '1' when (VI_CTRL_TYPE = "00" or VI_WIDTH = 0) else '0';
    
    process (clk1x)
+      variable shadow_div_next : unsigned(15 downto 0);
    begin
       if rising_edge(clk1x) then
 
@@ -307,6 +310,23 @@ begin
                   shadow_fallback_count <= shadow_fallback_count + 1;
                end if;
                shadow_fallback_reason <= x"2";
+            end if;
+
+            if (VI_SHADOW_FRAME_STROBE = '1' and VI_SHADOW_ENABLE = '1' and VI_SHADOW_MODE = "01" and VI_SHADOW_UNSUPPORTED_CMDS /= 0) then
+               shadow_div_next := shadow_divergence_count;
+               if (shadow_div_next > x"FFFF" - VI_SHADOW_UNSUPPORTED_CMDS) then
+                  shadow_div_next := x"FFFF";
+               else
+                  shadow_div_next := shadow_div_next + VI_SHADOW_UNSUPPORTED_CMDS;
+               end if;
+               shadow_divergence_count <= shadow_div_next;
+
+               if (shadow_fallback_reason = x"0") then
+                  if (shadow_fallback_count /= x"FF") then
+                     shadow_fallback_count <= shadow_fallback_count + 1;
+                  end if;
+                  shadow_fallback_reason <= x"3";
+               end if;
             end if;
          end if;
       
@@ -779,4 +799,3 @@ begin
                    (others => '0');
    
 end architecture;
-

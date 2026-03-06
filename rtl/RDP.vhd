@@ -27,11 +27,16 @@ entity RDP is
       DISABLEFILTER        : in  std_logic;
       DISABLEDITHER        : in  std_logic;
       DISABLELOD           : in  std_logic;
+      VI_SHADOW_ENABLE     : in  std_logic;
+      VI_SHADOW_MODE       : in  unsigned(1 downto 0);
       write9               : in  std_logic;
       read9                : in  std_logic;
       wait9                : in  std_logic;
       writeZ               : in  std_logic;
       readZ                : in  std_logic;
+
+      VI_SHADOW_FRAME_STROBE       : out std_logic := '0';
+      VI_SHADOW_UNSUPPORTED_CMDS   : out unsigned(15 downto 0) := (others => '0');
             
       irq_out              : out std_logic := '0';
             
@@ -113,6 +118,16 @@ end entity;
 
 architecture arch of RDP is
 
+   function shadow_opcode_supported(opcode : unsigned(5 downto 0)) return boolean is
+   begin
+      case opcode is
+         when 6x"00" | 6x"26" | 6x"27" | 6x"28" | 6x"29" | 6x"2D" | 6x"2F" | 6x"36" | 6x"37" | 6x"3F" =>
+            return true;
+         when others =>
+            return false;
+      end case;
+   end function;
+
    signal DPC_START_NEXT            : unsigned(23 downto 0) := (others => '0'); -- 0x04100000 (RW): [23:0] DMEM/RDRAM start address
    signal DPC_END_NEXT              : unsigned(23 downto 0) := (others => '0'); -- 0x04100004 (RW): [23:0] DMEM/RDRAM end address
    signal DPC_CURRENT               : unsigned(23 downto 0) := (others => '0'); -- 0x04100008 (R): [23:0] DMEM/RDRAM current address
@@ -158,6 +173,9 @@ architecture arch of RDP is
    signal cmdfifo_wr                : std_logic := '0';
    signal cmdfifo_wr_1              : std_logic := '0';
    signal cmdfifo_nearfull          : std_logic;
+   signal shadow_cmd_done           : std_logic;
+   signal shadow_cmd_opcode         : unsigned(5 downto 0);
+   signal shadow_frame_unsupported_work : unsigned(15 downto 0) := (others => '0');
    
    -- Texture request ram
    signal TextureReqRAMreq          : std_logic;
@@ -763,6 +781,40 @@ begin
 
       end if;
    end process;
+
+   process (clk1x)
+      variable shadow_next : unsigned(15 downto 0);
+   begin
+      if rising_edge(clk1x) then
+         VI_SHADOW_FRAME_STROBE <= '0';
+
+         if (reset = '1') then
+            shadow_frame_unsupported_work <= (others => '0');
+            VI_SHADOW_UNSUPPORTED_CMDS    <= (others => '0');
+         elsif (ce = '1') then
+            if (VI_SHADOW_ENABLE = '1' and VI_SHADOW_MODE = "01") then
+               shadow_next := shadow_frame_unsupported_work;
+
+               if (shadow_cmd_done = '1' and (not shadow_opcode_supported(shadow_cmd_opcode))) then
+                  if (shadow_next /= x"FFFF") then
+                     shadow_next := shadow_next + 1;
+                  end if;
+               end if;
+
+               if (commandSyncFull = '1') then
+                  VI_SHADOW_UNSUPPORTED_CMDS <= shadow_next;
+                  VI_SHADOW_FRAME_STROBE     <= '1';
+                  shadow_frame_unsupported_work <= (others => '0');
+               else
+                  shadow_frame_unsupported_work <= shadow_next;
+               end if;
+            else
+               shadow_frame_unsupported_work <= (others => '0');
+               VI_SHADOW_UNSUPPORTED_CMDS    <= (others => '0');
+            end if;
+         end if;
+      end if;
+   end process;
    
    RSP2RDP_len <= commandCntNext;
    
@@ -840,6 +892,8 @@ begin
       poly_start              => poly_start,     
       poly_loading_mode       => poly_loading_mode,     
       sync_full               => commandSyncFull,     
+      shadow_cmd_done         => shadow_cmd_done,
+      shadow_cmd_opcode       => shadow_cmd_opcode,
 
       -- synthesis translate_off
       export_command_done     => export_command_done, 
@@ -2149,7 +2203,3 @@ begin
 
 
 end architecture;
-
-
-
-
