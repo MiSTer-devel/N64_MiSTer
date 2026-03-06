@@ -485,6 +485,7 @@ architecture arch of n64top is
    signal VI_shadow_frame_strobe : std_logic := '0';
    signal VI_shadow_unsupported_cmds : unsigned(15 downto 0) := (others => '0');
    signal VI_shadow_fillrect_count   : unsigned(15 downto 0) := (others => '0');
+   signal VI_shadow_texrect_count    : unsigned(15 downto 0) := (others => '0');
    signal VI_shadow_fill_color       : unsigned(23 downto 0) := (others => '0');
    signal VI_shadow_fillrect_valid   : std_logic := '0';
    signal VI_shadow_fillrect_x0      : unsigned(9 downto 0) := (others => '0');
@@ -758,6 +759,7 @@ begin
       VI_SHADOW_FRAME_STROBE      => VI_shadow_frame_strobe,
       VI_SHADOW_UNSUPPORTED_CMDS  => VI_shadow_unsupported_cmds,
       VI_SHADOW_FILLRECT_COUNT    => VI_shadow_fillrect_count,
+      VI_SHADOW_TEXRECT_COUNT     => VI_shadow_texrect_count,
       VI_SHADOW_FILL_COLOR        => VI_shadow_fill_color,
       VI_SHADOW_FILLRECT_VALID    => VI_shadow_fillrect_valid,
       VI_SHADOW_FILLRECT_X0       => VI_shadow_fillrect_x0,
@@ -945,6 +947,7 @@ begin
       VI_SHADOW_FRAME_STROBE => VI_shadow_frame_strobe,
       VI_SHADOW_UNSUPPORTED_CMDS => VI_shadow_unsupported_cmds,
       VI_SHADOW_FILLRECT_COUNT => VI_shadow_fillrect_count,
+      VI_SHADOW_TEXRECT_COUNT => VI_shadow_texrect_count,
       VI_SHADOW_FILL_COLOR => VI_shadow_fill_color,
       VI_SHADOW_FILLRECT_VALID => VI_shadow_fillrect_valid,
       VI_SHADOW_FILLRECT_X0 => VI_shadow_fillrect_x0,
