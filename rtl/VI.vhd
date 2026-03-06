@@ -63,6 +63,7 @@ entity VI is
       VI_SHADOW_FILLRECT1_Y0 : in unsigned(8 downto 0);
       VI_SHADOW_FILLRECT1_Y1 : in unsigned(8 downto 0);
       VI_SHADOW_FILLRECT1_COLOR : in unsigned(23 downto 0);
+      VI_SHADOW_FILLRECT_DROPPED : in unsigned(15 downto 0);
       
       errorEna         : in  std_logic;
       errorCode        : in  unsigned(31 downto 0);
@@ -569,6 +570,7 @@ begin
       VI_SHADOW_FILLRECT1_Y0           => VI_SHADOW_FILLRECT1_Y0,
       VI_SHADOW_FILLRECT1_Y1           => VI_SHADOW_FILLRECT1_Y1,
       VI_SHADOW_FILLRECT1_COLOR        => VI_SHADOW_FILLRECT1_COLOR,
+      VI_SHADOW_FILLRECT_DROPPED       => VI_SHADOW_FILLRECT_DROPPED,
                   
       VI_CTRL_TYPE                     => VIE_CTRL_TYPE,
       VI_CTRL_AA_MODE                  => VIE_CTRL_AA_MODE,

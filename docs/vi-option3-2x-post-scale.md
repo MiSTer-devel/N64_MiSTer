@@ -60,6 +60,7 @@ Changes:
   - `U` = last frame unsupported-command count
   - `Q` = last frame fill-rectangle command count
   - `V` = last frame fill-rectangle bounds-valid bit
+  - `L` = last frame fill-rectangle commands dropped by 2-slot shadow list
   - `W` = consecutive output frames without shadow frame-strobe
 - Fallback reason encoding (current PoC):
   - `1`: unsupported VI mode (`VI_CTRL_TYPE=0` or zero width)
@@ -138,6 +139,7 @@ Changes:
   - fill bounds converted from RDP 10.2 fixed-point into VI pixel coordinates before masking
   - fill bounds are clipped against the active RDP scissor region before masking
   - latest-two clipped fill rectangles (with per-rectangle colors) are forwarded each frame for command-aware masking priority
+  - per-frame dropped counter reports clipped fillrect commands that overflow the 2-slot list
   - timing remains sourced from native VI output path
 
 Acceptance:
