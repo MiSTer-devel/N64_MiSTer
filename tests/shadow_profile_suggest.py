@@ -84,6 +84,18 @@ def main() -> int:
             "Aggregate fill bounds post-scissor (VI pixels): "
             f"x={bounds['x0']}..{bounds['x1']} y={bounds['y0']}..{bounds['y1']}"
         )
+    tex_bounds_raw = trace_summary["texrect_bounds_px_raw"]
+    if tex_bounds_raw is not None:
+        print(
+            "Aggregate texrect bounds raw (VI pixels): "
+            f"x={tex_bounds_raw['x0']}..{tex_bounds_raw['x1']} y={tex_bounds_raw['y0']}..{tex_bounds_raw['y1']}"
+        )
+    tex_bounds = trace_summary["texrect_bounds_px"]
+    if tex_bounds is not None:
+        print(
+            "Aggregate texrect bounds post-scissor (VI pixels): "
+            f"x={tex_bounds['x0']}..{tex_bounds['x1']} y={tex_bounds['y0']}..{tex_bounds['y1']}"
+        )
     if args.override_mode is not None:
         print(f"Using override mode: {args.override_mode}")
     print("Case entry:")

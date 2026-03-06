@@ -139,11 +139,13 @@ Changes:
     - `fill_copy`: pass-through fallback when no fill metadata is present
   - RDP per-frame fill metadata (`fillrect_count`, `fill_color`) piped into shadow path
   - RDP per-frame texture-rectangle command count (`texrect_count`) piped into overlay telemetry
+  - RDP per-frame aggregate texture-rectangle bounds are piped into the shadow path after scissor clipping
   - RDP per-frame fill bounds (`x0/x1/y0/y1`, valid bit) piped into shadow path
   - fill bounds converted from RDP 10.2 fixed-point into VI pixel coordinates before masking
   - fill bounds are clipped against the active RDP scissor region before masking
   - latest-four clipped fill rectangles (with per-rectangle colors) are forwarded each frame for command-aware masking priority
   - fill-rectangle subset now rasterizes four 2x subpixels per output pixel and composites coverage back onto the native pixel
+  - copy subset now uses texrect coverage to drive a bounded placeholder enhancement inside copy regions until true texture replay exists
   - per-frame dropped counter reports clipped fillrect commands that overflow the 4-slot list
   - timing remains sourced from native VI output path
 

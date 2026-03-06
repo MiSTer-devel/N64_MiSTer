@@ -101,11 +101,20 @@ class FrameState:
     summary_count: int | None = None
     summary_checksum: int | None = None
     fillrect_count: int = 0
+    texrect_count: int = 0
     fillrect_shadow_count: int = 0
     fillrect_x0: int | None = None
     fillrect_x1: int | None = None
     fillrect_y0: int | None = None
     fillrect_y1: int | None = None
+    texrect_x0: int | None = None
+    texrect_x1: int | None = None
+    texrect_y0: int | None = None
+    texrect_y1: int | None = None
+    texrect_shadow_x0: int | None = None
+    texrect_shadow_x1: int | None = None
+    texrect_shadow_y0: int | None = None
+    texrect_shadow_y1: int | None = None
     fillrect_shadow_x0: int | None = None
     fillrect_shadow_x1: int | None = None
     fillrect_shadow_y0: int | None = None
@@ -236,6 +245,7 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
     fillrect_shadow_commands = 0
     fillrect_shadow_clipped_out_commands = 0
     fillrect_shadow_dropped_commands = 0
+    texrect_shadow_clipped_out_commands = 0
     total_frame_summaries = 0
     bad_global_idx = 0
     bad_frame_cmd_idx = 0
@@ -246,6 +256,8 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
     subset_unsupported_commands = 0
     fillrect_global_bounds_raw: tuple[int, int, int, int] | None = None
     fillrect_global_bounds_shadow: tuple[int, int, int, int] | None = None
+    texrect_global_bounds_raw: tuple[int, int, int, int] | None = None
+    texrect_global_bounds_shadow: tuple[int, int, int, int] | None = None
     scissor_current: tuple[int, int, int, int] | None = None
 
     expected_global_idx = 1
@@ -291,6 +303,38 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
                 if opcode in (0x24, 0x25):
                     texrect_commands += 1
                     texrect_frames.add(frame_id)
+                    raw_bounds = _fillrect_bounds_px(data64)
+                    x0, x1, y0, y1 = raw_bounds
+                    state.texrect_count += 1
+                    if state.texrect_x0 is None:
+                        state.texrect_x0 = x0
+                        state.texrect_x1 = x1
+                        state.texrect_y0 = y0
+                        state.texrect_y1 = y1
+                    else:
+                        state.texrect_x0 = min(state.texrect_x0, x0)
+                        state.texrect_x1 = max(state.texrect_x1, x1)
+                        state.texrect_y0 = min(state.texrect_y0, y0)
+                        state.texrect_y1 = max(state.texrect_y1, y1)
+
+                    texrect_global_bounds_raw = _merge_bounds(texrect_global_bounds_raw, raw_bounds)
+
+                    clipped_bounds = _clip_bounds(raw_bounds, scissor_current)
+                    if clipped_bounds is not None:
+                        cx0, cx1, cy0, cy1 = clipped_bounds
+                        if state.texrect_shadow_x0 is None:
+                            state.texrect_shadow_x0 = cx0
+                            state.texrect_shadow_x1 = cx1
+                            state.texrect_shadow_y0 = cy0
+                            state.texrect_shadow_y1 = cy1
+                        else:
+                            state.texrect_shadow_x0 = min(state.texrect_shadow_x0, cx0)
+                            state.texrect_shadow_x1 = max(state.texrect_shadow_x1, cx1)
+                            state.texrect_shadow_y0 = min(state.texrect_shadow_y0, cy0)
+                            state.texrect_shadow_y1 = max(state.texrect_shadow_y1, cy1)
+                        texrect_global_bounds_shadow = _merge_bounds(texrect_global_bounds_shadow, clipped_bounds)
+                    else:
+                        texrect_shadow_clipped_out_commands += 1
                 if opcode == 0x36:
                     fillrect_commands += 1
                     fillrect_frames.add(frame_id)
@@ -432,6 +476,7 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
         "frame_command_count_avg": (mean(command_counts) if command_counts else 0.0),
         "fillrect_commands": fillrect_commands,
         "texrect_commands": texrect_commands,
+        "texrect_shadow_clipped_out_commands": texrect_shadow_clipped_out_commands,
         "fillrect_shadow_commands": fillrect_shadow_commands,
         "fillrect_shadow_clipped_out_commands": fillrect_shadow_clipped_out_commands,
         "fillrect_shadow_slot_limit": SHADOW_FILLRECT_SLOT_LIMIT,
@@ -466,6 +511,26 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
                 "y1": fillrect_global_bounds_shadow[3],
             }
             if fillrect_global_bounds_shadow is not None
+            else None
+        ),
+        "texrect_bounds_px_raw": (
+            {
+                "x0": texrect_global_bounds_raw[0],
+                "x1": texrect_global_bounds_raw[1],
+                "y0": texrect_global_bounds_raw[2],
+                "y1": texrect_global_bounds_raw[3],
+            }
+            if texrect_global_bounds_raw is not None
+            else None
+        ),
+        "texrect_bounds_px": (
+            {
+                "x0": texrect_global_bounds_shadow[0],
+                "x1": texrect_global_bounds_shadow[1],
+                "y0": texrect_global_bounds_shadow[2],
+                "y1": texrect_global_bounds_shadow[3],
+            }
+            if texrect_global_bounds_shadow is not None
             else None
         ),
         "mismatches": {
@@ -526,7 +591,18 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
                     else None
                 ),
                 "fillrect_count": frames[fid].fillrect_count,
+                "texrect_count": frames[fid].texrect_count,
                 "fillrect_shadow_count": frames[fid].fillrect_shadow_count,
+                "texrect_bounds_px": (
+                    {
+                        "x0": frames[fid].texrect_shadow_x0,
+                        "x1": frames[fid].texrect_shadow_x1,
+                        "y0": frames[fid].texrect_shadow_y0,
+                        "y1": frames[fid].texrect_shadow_y1,
+                    }
+                    if frames[fid].texrect_count > 0
+                    else None
+                ),
                 "fillrect_bounds_px": (
                     {
                         "x0": frames[fid].fillrect_shadow_x0,
@@ -545,6 +621,16 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
                         "y1": frames[fid].fillrect_y1,
                     }
                     if frames[fid].fillrect_count > 0
+                    else None
+                ),
+                "texrect_bounds_px_raw": (
+                    {
+                        "x0": frames[fid].texrect_x0,
+                        "x1": frames[fid].texrect_x1,
+                        "y0": frames[fid].texrect_y0,
+                        "y1": frames[fid].texrect_y1,
+                    }
+                    if frames[fid].texrect_count > 0
                     else None
                 ),
             }
@@ -623,6 +709,10 @@ def main() -> int:
         f"{summary['frames_with_texrect']} frames"
     )
     print(
+        "  shadow-usable texrect bounds after scissor clip: "
+        f"clipped_out={summary['texrect_shadow_clipped_out_commands']}"
+    )
+    print(
         "  shadow-usable after scissor clip: "
         f"{summary['fillrect_shadow_commands']} commands across "
         f"{summary['frames_with_shadow_fillrect']} frames "
@@ -675,6 +765,20 @@ def main() -> int:
         bounds = summary["fillrect_bounds_px"]
         print(
             "  aggregate_fillrect_bounds_px: "
+            f"x={bounds['x0']}..{bounds['x1']} "
+            f"y={bounds['y0']}..{bounds['y1']}"
+        )
+    if summary["texrect_bounds_px_raw"] is not None:
+        bounds = summary["texrect_bounds_px_raw"]
+        print(
+            "  aggregate_texrect_bounds_px_raw: "
+            f"x={bounds['x0']}..{bounds['x1']} "
+            f"y={bounds['y0']}..{bounds['y1']}"
+        )
+    if summary["texrect_bounds_px"] is not None:
+        bounds = summary["texrect_bounds_px"]
+        print(
+            "  aggregate_texrect_bounds_px: "
             f"x={bounds['x0']}..{bounds['x1']} "
             f"y={bounds['y0']}..{bounds['y1']}"
         )
