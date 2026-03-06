@@ -1665,6 +1665,9 @@ begin
          variable useLOD            : std_logic;
          variable texfetch_count    : integer;
          variable texcolor_count    : integer;
+         variable frame_id          : integer;
+         variable frame_cmd_count   : integer;
+         variable frame_checksum    : unsigned(31 downto 0);
       begin
    
          file_open(f_status, outfile, "R:\\rdp_n64_sim.txt", write_mode);
@@ -1674,20 +1677,47 @@ begin
          for i in 0 to 29 loop
             tracecounts_out(i) <= 0;
          end loop;
+
+         frame_id        := 0;
+         frame_cmd_count := 0;
+         frame_checksum  := (others => '0');
          
          while (true) loop
             
             wait until rising_edge(clk1x);
             
             if (export_command_done = '1') then
+               frame_cmd_count := frame_cmd_count + 1;
+               frame_checksum  := frame_checksum xor unsigned(export_command_data(31 downto 0)) xor unsigned(export_command_data(63 downto 32));
+
                write(line_out, string'("Command: I ")); 
                write(line_out, to_string_len(tracecounts_out(2) + 1, 8));
+               write(line_out, string'(" F "));
+               write(line_out, to_string_len(frame_id, 6));
+               write(line_out, string'(" C "));
+               write(line_out, to_string_len(frame_cmd_count, 6));
                write(line_out, string'(" A ")); 
                write(line_out, to_hstring(to_unsigned(0, 32)));
                write(line_out, string'(" D "));
                write(line_out, to_hstring(export_command_data));
+               write(line_out, string'(" X "));
+               write(line_out, to_hstring(frame_checksum));
                writeline(outfile, line_out);
                tracecounts_out(2) <= tracecounts_out(2) + 1;
+
+               if (commandSyncFull = '1') then
+                  write(line_out, string'("Frame:   I "));
+                  write(line_out, to_string_len(frame_id, 6));
+                  write(line_out, string'(" C "));
+                  write(line_out, to_string_len(frame_cmd_count, 6));
+                  write(line_out, string'(" X "));
+                  write(line_out, to_hstring(frame_checksum));
+                  writeline(outfile, line_out);
+
+                  frame_id        := frame_id + 1;
+                  frame_cmd_count := 0;
+                  frame_checksum  := (others => '0');
+               end if;
             end if;
             
             --if (export_line_done = '1') then
@@ -2119,7 +2149,6 @@ begin
 
 
 end architecture;
-
 
 
 
