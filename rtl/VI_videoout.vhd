@@ -46,6 +46,8 @@ entity VI_videoout is
       VI_EXPERIMENTAL_FALLBACKS        : in  unsigned(15 downto 0);
       VI_EXPERIMENTAL_AUTO_COOLDOWN    : in  unsigned(7 downto 0);
       VI_EXPERIMENTAL_AUTO_UNSTABLE    : in  unsigned(2 downto 0);
+      VI_SHADOW_ENABLE                 : in  std_logic;
+      VI_SHADOW_MODE                   : in  unsigned(1 downto 0);
                   
       VI_CTRL_TYPE                     : in  unsigned(1 downto 0);
       VI_CTRL_AA_MODE                  : in  unsigned(1 downto 0);
@@ -234,6 +236,17 @@ architecture arch of VI_videoout is
    signal vi_exp_text         : unsigned(199 downto 0);
    signal overlay_vi_exp_data : std_logic_vector(23 downto 0);
    signal overlay_vi_exp_ena  : std_logic;
+
+   signal shadow_modechar       : unsigned(7 downto 0);
+   signal shadow_enabled_nibble : unsigned(3 downto 0);
+   signal shadow_text           : unsigned(207 downto 0);
+   signal overlay_shadow_data   : std_logic_vector(23 downto 0);
+   signal overlay_shadow_ena    : std_logic;
+
+   signal shadow_frame_count      : unsigned(15 downto 0) := (others => '0');
+   signal shadow_divergence_count : unsigned(15 downto 0) := (others => '0');
+   signal shadow_fallback_count   : unsigned(7 downto 0) := (others => '0');
+   signal shadow_fallback_reason  : unsigned(3 downto 0) := (others => '0');
    
 begin 
 
@@ -268,6 +281,13 @@ begin
    process (clk1x)
    begin
       if rising_edge(clk1x) then
+
+         if (reset_1x = '1') then
+            shadow_frame_count      <= (others => '0');
+            shadow_divergence_count <= (others => '0');
+            shadow_fallback_count   <= (others => '0');
+            shadow_fallback_reason  <= (others => '0');
+         end if;
       
          VI_WIDTH_adjust <= VI_WIDTH;
          
@@ -291,6 +311,12 @@ begin
          
          if (newFrame = '1') then
             gotFirstFrame <= '1'; -- Used to activate Fixed Blanks or Direct FB mode
+         end if;
+
+         if (videoout_request.newFrame = '1' and VI_SHADOW_ENABLE = '1') then
+            if (shadow_frame_count /= x"FFFF") then
+               shadow_frame_count <= shadow_frame_count + 1;
+            end if;
          end if;
          
       end if;
@@ -678,6 +704,25 @@ begin
                   to_unsigned(" U") &
                   conv_number(resize(VI_EXPERIMENTAL_AUTO_UNSTABLE, 4));
 
+   with VI_SHADOW_MODE select
+      shadow_modechar <= x"50" when "01", -- P (PoC shadow)
+                        x"4F" when others; -- O (off)
+
+   shadow_enabled_nibble <= x"1" when (VI_SHADOW_ENABLE = '1') else x"0";
+
+   shadow_text <= to_unsigned("VXS M") &
+                  shadow_modechar &
+                  to_unsigned(" E") &
+                  conv_number(shadow_enabled_nibble) &
+                  to_unsigned(" P") &
+                  conv_number(shadow_frame_count) &
+                  to_unsigned(" D") &
+                  conv_number(shadow_divergence_count) &
+                  to_unsigned(" F") &
+                  conv_number(shadow_fallback_count) &
+                  to_unsigned(" R") &
+                  conv_number(shadow_fallback_reason);
+
    ioverlayVIExp : entity work.VI_overlay generic map (25, 4, 26, x"007000")
    port map
    (
@@ -690,15 +735,28 @@ begin
       o_pixel_out_ena        => overlay_vi_exp_ena,
       textstring             => vi_exp_text
    );
+
+   ioverlayVIShadow : entity work.VI_overlay generic map (26, 14, 26, x"007070")
+   port map
+   (
+      clk                    => clkvid,
+      ce                     => videoout_out.ce,
+      ena                    => VI_SHADOW_ENABLE,
+      i_pixel_out_x          => to_integer(overlay_xpos),
+      i_pixel_out_y          => to_integer(overlay_ypos),
+      o_pixel_out_data       => overlay_shadow_data,
+      o_pixel_out_ena        => overlay_shadow_ena,
+      textstring             => shadow_text
+   );
    
-   overlay_ena <= overlay_fps_ena or overlay_error_ena or overlay_vi_exp_ena;
+   overlay_ena <= overlay_fps_ena or overlay_error_ena or overlay_vi_exp_ena or overlay_shadow_ena;
    
    overlay_data <= overlay_fps_data   when (overlay_fps_ena = '1') else
                    overlay_error_data when (overlay_error_ena = '1') else
                    overlay_vi_exp_data when (overlay_vi_exp_ena = '1') else
+                   overlay_shadow_data when (overlay_shadow_ena = '1') else
                    (others => '0');
    
 end architecture;
-
 
 

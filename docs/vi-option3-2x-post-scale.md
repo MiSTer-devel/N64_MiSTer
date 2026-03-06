@@ -176,7 +176,7 @@ Acceptance:
 
 ## Tracking Checklist
 - [x] Phase 1 complete
-- [ ] Phase 2 complete
+- [x] Phase 2 complete
 - [ ] Phase 3 complete
 - [ ] Phase 4 complete
 - [ ] Phase 5 complete
