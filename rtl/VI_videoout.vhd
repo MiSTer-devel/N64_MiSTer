@@ -145,7 +145,8 @@ architecture arch of VI_videoout is
 
    signal videoout_settings       : tvideoout_settings;
    signal videoout_reports        : tvideoout_reports;
-   signal videoout_out            : tvideoout_out; 
+   signal videoout_out            : tvideoout_out;
+   signal videoout_mux_out        : tvideoout_out;
    signal videoout_request        : tvideoout_request;  
 
    -- processing
@@ -247,6 +248,11 @@ architecture arch of VI_videoout is
 
    signal shadow_runtime_enable   : std_logic;
    signal shadow_guard_unsupported: std_logic;
+   signal shadow_output_enable    : std_logic;
+   signal shadow_stub_checker     : std_logic;
+   signal shadow_stub_r           : std_logic_vector(7 downto 0);
+   signal shadow_stub_g           : std_logic_vector(7 downto 0);
+   signal shadow_stub_b           : std_logic_vector(7 downto 0);
 
    signal shadow_frame_count      : unsigned(15 downto 0) := (others => '0');
    signal shadow_divergence_count : unsigned(15 downto 0) := (others => '0');
@@ -257,15 +263,15 @@ begin
 
    error_vi             <= error_outProcess or error_linefetch;
   
-   video_hsync          <= videoout_out.hsync;         
-   video_vsync          <= videoout_out.vsync;         
-   video_hblank         <= videoout_out.hblank;        
-   video_vblank         <= videoout_out.vblank;        
-   video_ce             <= videoout_out.ce;             
-   video_interlace      <= videoout_out.interlace;             
-   video_r              <= videoout_out.r(7 downto 1) & '0' when (VI_7BITPERCOLOR = '1') else videoout_out.r;             
-   video_g              <= videoout_out.g(7 downto 1) & '0' when (VI_7BITPERCOLOR = '1') else videoout_out.g;             
-   video_b              <= videoout_out.b(7 downto 1) & '0' when (VI_7BITPERCOLOR = '1') else videoout_out.b;  
+   video_hsync          <= videoout_mux_out.hsync;         
+   video_vsync          <= videoout_mux_out.vsync;         
+   video_hblank         <= videoout_mux_out.hblank;        
+   video_vblank         <= videoout_mux_out.vblank;        
+   video_ce             <= videoout_mux_out.ce;             
+   video_interlace      <= videoout_mux_out.interlace;             
+   video_r              <= videoout_mux_out.r(7 downto 1) & '0' when (VI_7BITPERCOLOR = '1') else videoout_mux_out.r;             
+   video_g              <= videoout_mux_out.g(7 downto 1) & '0' when (VI_7BITPERCOLOR = '1') else videoout_mux_out.g;             
+   video_b              <= videoout_mux_out.b(7 downto 1) & '0' when (VI_7BITPERCOLOR = '1') else videoout_mux_out.b;  
 
    videoout_settings.CTRL_TYPE         <= VI_CTRL_TYPE;
    videoout_settings.CTRL_SERRATE      <= VI_CTRL_SERRATE;
@@ -284,7 +290,23 @@ begin
    videoout_settings.VI_VSYNC_WIDTH    <= VI_VSYNC_WIDTH;
 
    shadow_runtime_enable <= '1' when (VI_SHADOW_ENABLE = '1' and (VI_SHADOW_MODE = "01" or VI_SHADOW_MODE = "10") and shadow_fallback_reason = x"0") else '0';
+   shadow_output_enable <= shadow_runtime_enable and gotFirstFrame;
    shadow_guard_unsupported <= '1' when (VI_CTRL_TYPE = "00" or VI_WIDTH = 0) else '0';
+   shadow_stub_checker <= overlay_xpos(0) xor overlay_ypos(0);
+   shadow_stub_r <= videoout_out.r;
+   shadow_stub_g <= '0' & videoout_out.g(7 downto 1);
+   shadow_stub_b <= videoout_out.b(7 downto 1) & shadow_stub_checker;
+
+   process (all)
+   begin
+      videoout_mux_out <= videoout_out;
+      if (shadow_output_enable = '1') then
+         -- Phase 5 scaffold: preserve native timing, swap in an obvious shadow stub RGB path.
+         videoout_mux_out.r <= shadow_stub_r;
+         videoout_mux_out.g <= shadow_stub_g;
+         videoout_mux_out.b <= shadow_stub_b;
+      end if;
+   end process;
    
    process (clk1x)
       variable shadow_div_next : unsigned(15 downto 0);
@@ -750,7 +772,7 @@ begin
                         x"43" when "10", -- C (fill_copy profile)
                         x"4F" when others; -- O (off)
 
-   shadow_enabled_nibble <= x"1" when (shadow_runtime_enable = '1') else x"0";
+   shadow_enabled_nibble <= x"1" when (shadow_output_enable = '1') else x"0";
 
    shadow_text <= to_unsigned("VXS M") &
                   shadow_modechar &

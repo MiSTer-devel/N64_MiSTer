@@ -121,6 +121,10 @@ File targets:
 Changes:
 - Render shadow buffer at 2x for supported commands.
 - Keep unsupported commands on native output path.
+- Initial scaffolding implemented:
+  - native/shadow display mux in `VI_videoout`
+  - shadow stub RGB path (tint/checker) for activation verification
+  - timing remains sourced from native VI output path
 
 Acceptance:
 - Supported scenes show visible 2x shadow output.
