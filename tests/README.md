@@ -49,3 +49,22 @@ tests/rom_signature.py /path/to/your.rom.z64
 ```
 
 Use the printed `case` line in `N64.sv` inside `profile_vi_experimental_mode(...)`.
+
+## RDP Trace Replay Validator (Option #3)
+Use the replay validator to inspect simulation command traces emitted by `rtl/RDP.vhd`:
+
+```bash
+python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt
+```
+
+Strict mode exits non-zero when any mismatch is found:
+
+```bash
+python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt --strict
+```
+
+Optional outputs:
+- Write JSON summary:
+  - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt --json-out /tmp/rdp_summary.json`
+- Dump one frame's command words:
+  - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt --dump-frame 42`
