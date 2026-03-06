@@ -67,6 +67,7 @@ Changes:
   - `2`: VI processing error (`error_linefetch`/`error_outProcess`)
   - `3`: frame uses RDP commands outside current shadow subset
   - `4`: shadow frame-strobe watchdog timeout (no strobe observed for 8 consecutive output frames)
+  - `5`: persistent fillrect-list overflow (dropped fill commands for 8 consecutive shadow frames)
 - Shadow subset mode mapping (current PoC):
   - mode `01`: `fill_only`
   - mode `10`: `fill_copy`

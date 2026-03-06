@@ -283,6 +283,7 @@ architecture arch of VI_videoout is
    signal shadow_fallback_count   : unsigned(7 downto 0) := (others => '0');
    signal shadow_fallback_reason  : unsigned(3 downto 0) := (others => '0');
    signal shadow_no_strobe_frames : unsigned(7 downto 0) := (others => '0');
+   signal shadow_overflow_streak  : unsigned(7 downto 0) := (others => '0');
    
 begin 
 
@@ -378,11 +379,13 @@ begin
             shadow_fallback_count   <= (others => '0');
             shadow_fallback_reason  <= (others => '0');
             shadow_no_strobe_frames <= (others => '0');
+            shadow_overflow_streak  <= (others => '0');
          else
             if (VI_SHADOW_ENABLE = '0' or (VI_SHADOW_MODE /= "01" and VI_SHADOW_MODE /= "10")) then
                -- Manual disable/mode switch clears sticky fallback latch.
                shadow_fallback_reason <= (others => '0');
                shadow_no_strobe_frames <= (others => '0');
+               shadow_overflow_streak <= (others => '0');
             elsif (shadow_guard_unsupported = '1' and shadow_fallback_reason = x"0") then
                if (shadow_fallback_count /= x"FF") then
                   shadow_fallback_count <= shadow_fallback_count + 1;
@@ -398,6 +401,19 @@ begin
             if (VI_SHADOW_ENABLE = '1' and (VI_SHADOW_MODE = "01" or VI_SHADOW_MODE = "10")) then
                if (VI_SHADOW_FRAME_STROBE = '1') then
                   shadow_no_strobe_frames <= (others => '0');
+                  if (VI_SHADOW_FILLRECT_DROPPED /= 0) then
+                     if (shadow_overflow_streak /= x"FF") then
+                        shadow_overflow_streak <= shadow_overflow_streak + 1;
+                     end if;
+                     if (shadow_fallback_reason = x"0" and shadow_overflow_streak >= x"07") then
+                        if (shadow_fallback_count /= x"FF") then
+                           shadow_fallback_count <= shadow_fallback_count + 1;
+                        end if;
+                        shadow_fallback_reason <= x"5";
+                     end if;
+                  else
+                     shadow_overflow_streak <= (others => '0');
+                  end if;
                elsif (videoout_request.newFrame = '1') then
                   if (shadow_no_strobe_frames /= x"FF") then
                      shadow_no_strobe_frames <= shadow_no_strobe_frames + 1;
