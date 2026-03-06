@@ -42,10 +42,22 @@ def main() -> int:
         f"{trace_summary['fillrect_commands']} across "
         f"{trace_summary['frames_with_fillrect']} frames"
     )
+    print(
+        "Shadow-usable fill commands (post-scissor): "
+        f"{trace_summary['fillrect_shadow_commands']} across "
+        f"{trace_summary['frames_with_shadow_fillrect']} frames "
+        f"(clipped_out={trace_summary['fillrect_shadow_clipped_out_commands']})"
+    )
+    bounds_raw = trace_summary["fillrect_bounds_px_raw"]
+    if bounds_raw is not None:
+        print(
+            "Aggregate fill bounds raw (VI pixels): "
+            f"x={bounds_raw['x0']}..{bounds_raw['x1']} y={bounds_raw['y0']}..{bounds_raw['y1']}"
+        )
     bounds = trace_summary["fillrect_bounds_px"]
     if bounds is not None:
         print(
-            "Aggregate fill bounds (VI pixels): "
+            "Aggregate fill bounds post-scissor (VI pixels): "
             f"x={bounds['x0']}..{bounds['x1']} y={bounds['y0']}..{bounds['y1']}"
         )
     if args.override_mode is not None:

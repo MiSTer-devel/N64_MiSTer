@@ -101,10 +101,15 @@ class FrameState:
     summary_count: int | None = None
     summary_checksum: int | None = None
     fillrect_count: int = 0
+    fillrect_shadow_count: int = 0
     fillrect_x0: int | None = None
     fillrect_x1: int | None = None
     fillrect_y0: int | None = None
     fillrect_y1: int | None = None
+    fillrect_shadow_x0: int | None = None
+    fillrect_shadow_x1: int | None = None
+    fillrect_shadow_y0: int | None = None
+    fillrect_shadow_y1: int | None = None
 
 
 def _opcode_from_command(data64: int) -> int:
@@ -122,6 +127,41 @@ def _fillrect_bounds_px(data64: int) -> tuple[int, int, int, int]:
     x1 = max(xh, xl) >> 2
     y0 = min(yh, yl) >> 2
     y1 = max(yh, yl) >> 2
+    return (x0, x1, y0, y1)
+
+
+def _scissor_bounds_px(data64: int) -> tuple[int, int, int, int]:
+    x0, x1, y0, y1 = _fillrect_bounds_px(data64)
+    # Match RTL clamp to VI Y range.
+    return (x0, x1, min(y0, 511), min(y1, 511))
+
+
+def _merge_bounds(
+    current: tuple[int, int, int, int] | None,
+    update: tuple[int, int, int, int],
+) -> tuple[int, int, int, int]:
+    if current is None:
+        return update
+    return (
+        min(current[0], update[0]),
+        max(current[1], update[1]),
+        min(current[2], update[2]),
+        max(current[3], update[3]),
+    )
+
+
+def _clip_bounds(
+    bounds: tuple[int, int, int, int],
+    scissor: tuple[int, int, int, int] | None,
+) -> tuple[int, int, int, int] | None:
+    if scissor is None:
+        return bounds
+    x0 = max(bounds[0], scissor[0])
+    x1 = min(bounds[1], scissor[1])
+    y0 = max(bounds[2], scissor[2])
+    y1 = min(bounds[3], scissor[3])
+    if x0 > x1 or y0 > y1:
+        return None
     return (x0, x1, y0, y1)
 
 
@@ -181,9 +221,12 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
     subset_unsupported_hist: dict[int, int] = {}
     subset_violation_frames: set[int] = set()
     fillrect_frames: set[int] = set()
+    fillrect_shadow_frames: set[int] = set()
 
     total_commands = 0
     fillrect_commands = 0
+    fillrect_shadow_commands = 0
+    fillrect_shadow_clipped_out_commands = 0
     total_frame_summaries = 0
     bad_global_idx = 0
     bad_frame_cmd_idx = 0
@@ -192,7 +235,9 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
     bad_frame_summary_checksum = 0
     bad_parse_lines = 0
     subset_unsupported_commands = 0
-    fillrect_global_bounds: tuple[int, int, int, int] | None = None
+    fillrect_global_bounds_raw: tuple[int, int, int, int] | None = None
+    fillrect_global_bounds_shadow: tuple[int, int, int, int] | None = None
+    scissor_current: tuple[int, int, int, int] | None = None
 
     expected_global_idx = 1
     allowed_opcodes = SUBSETS.get(subset) if subset is not None else None
@@ -231,10 +276,13 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
 
                 opcode = _opcode_from_command(data64)
                 opcode_hist[opcode] = opcode_hist.get(opcode, 0) + 1
+                if opcode == 0x2D:
+                    scissor_current = _scissor_bounds_px(data64)
                 if opcode == 0x36:
                     fillrect_commands += 1
                     fillrect_frames.add(frame_id)
-                    x0, x1, y0, y1 = _fillrect_bounds_px(data64)
+                    raw_bounds = _fillrect_bounds_px(data64)
+                    x0, x1, y0, y1 = raw_bounds
                     state.fillrect_count += 1
                     if state.fillrect_x0 is None:
                         state.fillrect_x0 = x0
@@ -247,16 +295,27 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
                         state.fillrect_y0 = min(state.fillrect_y0, y0)
                         state.fillrect_y1 = max(state.fillrect_y1, y1)
 
-                    if fillrect_global_bounds is None:
-                        fillrect_global_bounds = (x0, x1, y0, y1)
+                    fillrect_global_bounds_raw = _merge_bounds(fillrect_global_bounds_raw, raw_bounds)
+
+                    clipped_bounds = _clip_bounds(raw_bounds, scissor_current)
+                    if clipped_bounds is not None:
+                        fillrect_shadow_commands += 1
+                        fillrect_shadow_frames.add(frame_id)
+                        state.fillrect_shadow_count += 1
+                        cx0, cx1, cy0, cy1 = clipped_bounds
+                        if state.fillrect_shadow_x0 is None:
+                            state.fillrect_shadow_x0 = cx0
+                            state.fillrect_shadow_x1 = cx1
+                            state.fillrect_shadow_y0 = cy0
+                            state.fillrect_shadow_y1 = cy1
+                        else:
+                            state.fillrect_shadow_x0 = min(state.fillrect_shadow_x0, cx0)
+                            state.fillrect_shadow_x1 = max(state.fillrect_shadow_x1, cx1)
+                            state.fillrect_shadow_y0 = min(state.fillrect_shadow_y0, cy0)
+                            state.fillrect_shadow_y1 = max(state.fillrect_shadow_y1, cy1)
+                        fillrect_global_bounds_shadow = _merge_bounds(fillrect_global_bounds_shadow, clipped_bounds)
                     else:
-                        gx0, gx1, gy0, gy1 = fillrect_global_bounds
-                        fillrect_global_bounds = (
-                            min(gx0, x0),
-                            max(gx1, x1),
-                            min(gy0, y0),
-                            max(gy1, y1),
-                        )
+                        fillrect_shadow_clipped_out_commands += 1
                 if allowed_opcodes is not None and opcode not in allowed_opcodes:
                     subset_unsupported_commands += 1
                     subset_unsupported_hist[opcode] = subset_unsupported_hist.get(opcode, 0) + 1
@@ -313,16 +372,30 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
         "frame_command_count_max": max(command_counts) if command_counts else 0,
         "frame_command_count_avg": (mean(command_counts) if command_counts else 0.0),
         "fillrect_commands": fillrect_commands,
+        "fillrect_shadow_commands": fillrect_shadow_commands,
+        "fillrect_shadow_clipped_out_commands": fillrect_shadow_clipped_out_commands,
         "frames_with_fillrect": len(fillrect_frames),
+        "frames_with_shadow_fillrect": len(fillrect_shadow_frames),
         "sample_frames_with_fillrect": _first_n_sorted(fillrect_frames, limit=16),
+        "sample_frames_with_shadow_fillrect": _first_n_sorted(fillrect_shadow_frames, limit=16),
+        "fillrect_bounds_px_raw": (
+            {
+                "x0": fillrect_global_bounds_raw[0],
+                "x1": fillrect_global_bounds_raw[1],
+                "y0": fillrect_global_bounds_raw[2],
+                "y1": fillrect_global_bounds_raw[3],
+            }
+            if fillrect_global_bounds_raw is not None
+            else None
+        ),
         "fillrect_bounds_px": (
             {
-                "x0": fillrect_global_bounds[0],
-                "x1": fillrect_global_bounds[1],
-                "y0": fillrect_global_bounds[2],
-                "y1": fillrect_global_bounds[3],
+                "x0": fillrect_global_bounds_shadow[0],
+                "x1": fillrect_global_bounds_shadow[1],
+                "y0": fillrect_global_bounds_shadow[2],
+                "y1": fillrect_global_bounds_shadow[3],
             }
-            if fillrect_global_bounds is not None
+            if fillrect_global_bounds_shadow is not None
             else None
         ),
         "mismatches": {
@@ -369,7 +442,18 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
                     else None
                 ),
                 "fillrect_count": frames[fid].fillrect_count,
+                "fillrect_shadow_count": frames[fid].fillrect_shadow_count,
                 "fillrect_bounds_px": (
+                    {
+                        "x0": frames[fid].fillrect_shadow_x0,
+                        "x1": frames[fid].fillrect_shadow_x1,
+                        "y0": frames[fid].fillrect_shadow_y0,
+                        "y1": frames[fid].fillrect_shadow_y1,
+                    }
+                    if frames[fid].fillrect_shadow_count > 0
+                    else None
+                ),
+                "fillrect_bounds_px_raw": (
                     {
                         "x0": frames[fid].fillrect_x0,
                         "x1": frames[fid].fillrect_x1,
@@ -449,10 +533,28 @@ def main() -> int:
         f"{summary['fillrect_commands']} commands across "
         f"{summary['frames_with_fillrect']} frames"
     )
+    print(
+        "  shadow-usable after scissor clip: "
+        f"{summary['fillrect_shadow_commands']} commands across "
+        f"{summary['frames_with_shadow_fillrect']} frames "
+        f"(clipped_out={summary['fillrect_shadow_clipped_out_commands']})"
+    )
     if summary["sample_frames_with_fillrect"]:
         print(
             "  sample_frames_with_fillrect: "
             + ", ".join(str(fid) for fid in summary["sample_frames_with_fillrect"])
+        )
+    if summary["sample_frames_with_shadow_fillrect"]:
+        print(
+            "  sample_frames_with_shadow_fillrect: "
+            + ", ".join(str(fid) for fid in summary["sample_frames_with_shadow_fillrect"])
+        )
+    if summary["fillrect_bounds_px_raw"] is not None:
+        bounds = summary["fillrect_bounds_px_raw"]
+        print(
+            "  aggregate_fillrect_bounds_px_raw: "
+            f"x={bounds['x0']}..{bounds['x1']} "
+            f"y={bounds['y0']}..{bounds['y1']}"
         )
     if summary["fillrect_bounds_px"] is not None:
         bounds = summary["fillrect_bounds_px"]
