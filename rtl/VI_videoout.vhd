@@ -243,6 +243,9 @@ architecture arch of VI_videoout is
    signal overlay_shadow_data   : std_logic_vector(23 downto 0);
    signal overlay_shadow_ena    : std_logic;
 
+   signal shadow_runtime_enable   : std_logic;
+   signal shadow_guard_unsupported: std_logic;
+
    signal shadow_frame_count      : unsigned(15 downto 0) := (others => '0');
    signal shadow_divergence_count : unsigned(15 downto 0) := (others => '0');
    signal shadow_fallback_count   : unsigned(7 downto 0) := (others => '0');
@@ -277,6 +280,9 @@ begin
    videoout_settings.VI_V_VIDEO_END    <= VI_V_VIDEO_END;
    videoout_settings.VI_HSYNC_WIDTH    <= VI_HSYNC_WIDTH;
    videoout_settings.VI_VSYNC_WIDTH    <= VI_VSYNC_WIDTH;
+
+   shadow_runtime_enable <= '1' when (VI_SHADOW_ENABLE = '1' and VI_SHADOW_MODE = "01" and shadow_fallback_reason = x"0") else '0';
+   shadow_guard_unsupported <= '1' when (VI_CTRL_TYPE = "00" or VI_WIDTH = 0) else '0';
    
    process (clk1x)
    begin
@@ -287,6 +293,21 @@ begin
             shadow_divergence_count <= (others => '0');
             shadow_fallback_count   <= (others => '0');
             shadow_fallback_reason  <= (others => '0');
+         else
+            if (VI_SHADOW_ENABLE = '0' or VI_SHADOW_MODE /= "01") then
+               -- Manual disable/mode switch clears sticky fallback latch.
+               shadow_fallback_reason <= (others => '0');
+            elsif (shadow_guard_unsupported = '1' and shadow_fallback_reason = x"0") then
+               if (shadow_fallback_count /= x"FF") then
+                  shadow_fallback_count <= shadow_fallback_count + 1;
+               end if;
+               shadow_fallback_reason <= x"1";
+            elsif ((error_linefetch = '1' or error_outProcess = '1') and shadow_fallback_reason = x"0") then
+               if (shadow_fallback_count /= x"FF") then
+                  shadow_fallback_count <= shadow_fallback_count + 1;
+               end if;
+               shadow_fallback_reason <= x"2";
+            end if;
          end if;
       
          VI_WIDTH_adjust <= VI_WIDTH;
@@ -313,7 +334,7 @@ begin
             gotFirstFrame <= '1'; -- Used to activate Fixed Blanks or Direct FB mode
          end if;
 
-         if (videoout_request.newFrame = '1' and VI_SHADOW_ENABLE = '1') then
+         if (videoout_request.newFrame = '1' and shadow_runtime_enable = '1') then
             if (shadow_frame_count /= x"FFFF") then
                shadow_frame_count <= shadow_frame_count + 1;
             end if;
@@ -708,7 +729,7 @@ begin
       shadow_modechar <= x"50" when "01", -- P (PoC shadow)
                         x"4F" when others; -- O (off)
 
-   shadow_enabled_nibble <= x"1" when (VI_SHADOW_ENABLE = '1') else x"0";
+   shadow_enabled_nibble <= x"1" when (shadow_runtime_enable = '1') else x"0";
 
    shadow_text <= to_unsigned("VXS M") &
                   shadow_modechar &
@@ -758,5 +779,4 @@ begin
                    (others => '0');
    
 end architecture;
-
 

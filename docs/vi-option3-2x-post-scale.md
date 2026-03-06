@@ -56,6 +56,9 @@ Changes:
   - shadow/native divergence count
   - fallback count/reason
 - Extend overlay (`VIX`) with compact shadow status fields.
+- Fallback reason encoding (current PoC):
+  - `1`: unsupported VI mode (`VI_CTRL_TYPE=0` or zero width)
+  - `2`: VI processing error (`error_linefetch`/`error_outProcess`)
 
 Acceptance:
 - Overlay shows stable counters in `Off` mode.
