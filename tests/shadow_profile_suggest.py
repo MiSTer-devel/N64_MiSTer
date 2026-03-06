@@ -43,6 +43,11 @@ def main() -> int:
         f"{trace_summary['frames_with_fillrect']} frames"
     )
     print(
+        "Texture-rectangle commands: "
+        f"{trace_summary['texrect_commands']} across "
+        f"{trace_summary['frames_with_texrect']} frames"
+    )
+    print(
         "Shadow-usable fill commands (post-scissor): "
         f"{trace_summary['fillrect_shadow_commands']} across "
         f"{trace_summary['frames_with_shadow_fillrect']} frames "

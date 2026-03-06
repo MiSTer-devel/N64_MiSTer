@@ -101,6 +101,8 @@ Optional outputs:
   - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt --subset fill_only --strict-subset`
 - Print shadow-mode recommendation:
   - always included in summary (`fill_only`, `fill_copy`, or `off`)
+- Inspect copy-path activity:
+  - replay summary reports texture-rectangle command count and frame coverage (`texrect_commands`, `frames_with_texrect`)
 - Inspect fill-rectangle region coverage (decoded to VI pixel bounds):
   - replay summary includes raw bounds (`aggregate_fillrect_bounds_px_raw`)
   - replay summary includes post-scissor bounds used by shadow metadata (`aggregate_fillrect_bounds_px`)

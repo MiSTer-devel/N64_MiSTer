@@ -59,6 +59,7 @@ Changes:
 - Shadow overlay (`VXS`) includes:
   - `U` = last frame unsupported-command count
   - `Q` = last frame fill-rectangle command count
+  - `T` = last frame texture-rectangle command count
   - `V` = last frame fill-rectangle bounds-valid bit
   - `L` = last frame fill-rectangle commands dropped by 4-slot shadow list
   - `W` = consecutive output frames without shadow frame-strobe
@@ -137,6 +138,7 @@ Changes:
     - `fill_only`: checker fallback when no fill metadata is present
     - `fill_copy`: pass-through fallback when no fill metadata is present
   - RDP per-frame fill metadata (`fillrect_count`, `fill_color`) piped into shadow path
+  - RDP per-frame texture-rectangle command count (`texrect_count`) piped into overlay telemetry
   - RDP per-frame fill bounds (`x0/x1/y0/y1`, valid bit) piped into shadow path
   - fill bounds converted from RDP 10.2 fixed-point into VI pixel coordinates before masking
   - fill bounds are clipped against the active RDP scissor region before masking

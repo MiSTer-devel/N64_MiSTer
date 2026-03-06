@@ -226,11 +226,13 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
     subset_unsupported_hist: dict[int, int] = {}
     subset_violation_frames: set[int] = set()
     fillrect_frames: set[int] = set()
+    texrect_frames: set[int] = set()
     fillrect_shadow_frames: set[int] = set()
     fillrect_shadow_overflow_frames: set[int] = set()
 
     total_commands = 0
     fillrect_commands = 0
+    texrect_commands = 0
     fillrect_shadow_commands = 0
     fillrect_shadow_clipped_out_commands = 0
     fillrect_shadow_dropped_commands = 0
@@ -286,6 +288,9 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
                 state.opcode_hist[opcode] = state.opcode_hist.get(opcode, 0) + 1
                 if opcode == 0x2D:
                     scissor_current = _scissor_bounds_px(data64)
+                if opcode in (0x24, 0x25):
+                    texrect_commands += 1
+                    texrect_frames.add(frame_id)
                 if opcode == 0x36:
                     fillrect_commands += 1
                     fillrect_frames.add(frame_id)
@@ -426,17 +431,20 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
         "frame_command_count_max": max(command_counts) if command_counts else 0,
         "frame_command_count_avg": (mean(command_counts) if command_counts else 0.0),
         "fillrect_commands": fillrect_commands,
+        "texrect_commands": texrect_commands,
         "fillrect_shadow_commands": fillrect_shadow_commands,
         "fillrect_shadow_clipped_out_commands": fillrect_shadow_clipped_out_commands,
         "fillrect_shadow_slot_limit": SHADOW_FILLRECT_SLOT_LIMIT,
         "shadow_unsupported_streak_limit": SHADOW_UNSUPPORTED_STREAK_LIMIT,
         "fillrect_shadow_dropped_commands": fillrect_shadow_dropped_commands,
         "frames_with_fillrect": len(fillrect_frames),
+        "frames_with_texrect": len(texrect_frames),
         "frames_with_shadow_fillrect": len(fillrect_shadow_frames),
         "frames_with_shadow_fillrect_overflow": len(fillrect_shadow_overflow_frames),
         "fillrect_shadow_max_overflow_streak": max_overflow_streak,
         "fillrect_shadow_overflow_fallback_frames": len(overflow_fallback_trigger_frames),
         "sample_frames_with_fillrect": _first_n_sorted(fillrect_frames, limit=16),
+        "sample_frames_with_texrect": _first_n_sorted(texrect_frames, limit=16),
         "sample_frames_with_shadow_fillrect": _first_n_sorted(fillrect_shadow_frames, limit=16),
         "sample_frames_with_shadow_fillrect_overflow": _first_n_sorted(fillrect_shadow_overflow_frames, limit=16),
         "sample_frames_with_shadow_overflow_fallback": _first_n_sorted(overflow_fallback_trigger_frames, limit=16),
@@ -610,6 +618,11 @@ def main() -> int:
         f"{summary['frames_with_fillrect']} frames"
     )
     print(
+        "Texture rectangles: "
+        f"{summary['texrect_commands']} commands across "
+        f"{summary['frames_with_texrect']} frames"
+    )
+    print(
         "  shadow-usable after scissor clip: "
         f"{summary['fillrect_shadow_commands']} commands across "
         f"{summary['frames_with_shadow_fillrect']} frames "
@@ -630,6 +643,11 @@ def main() -> int:
         print(
             "  sample_frames_with_fillrect: "
             + ", ".join(str(fid) for fid in summary["sample_frames_with_fillrect"])
+        )
+    if summary["sample_frames_with_texrect"]:
+        print(
+            "  sample_frames_with_texrect: "
+            + ", ".join(str(fid) for fid in summary["sample_frames_with_texrect"])
         )
     if summary["sample_frames_with_shadow_fillrect"]:
         print(
