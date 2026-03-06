@@ -54,6 +54,11 @@ def main() -> int:
         f"dropped={trace_summary['fillrect_shadow_dropped_commands']} "
         f"frames={trace_summary['frames_with_shadow_fillrect_overflow']}"
     )
+    print(
+        "Overflow streak: "
+        f"max_consecutive={trace_summary['fillrect_shadow_max_overflow_streak']} "
+        f"fallback_hits={trace_summary['fillrect_shadow_overflow_fallback_frames']}"
+    )
     bounds_raw = trace_summary["fillrect_bounds_px_raw"]
     if bounds_raw is not None:
         print(

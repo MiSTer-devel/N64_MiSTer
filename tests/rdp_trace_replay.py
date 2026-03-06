@@ -367,12 +367,22 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
             "supported": unsupported == 0,
         }
     recommended_shadow_mode = _recommend_shadow_mode(opcode_hist, total_commands)
+    overflow_streak = 0
+    max_overflow_streak = 0
+    overflow_fallback_trigger_frames: set[int] = set()
 
     for fid in frame_ids:
         shadow_count = frames[fid].fillrect_shadow_count
         if shadow_count > SHADOW_FILLRECT_SLOT_LIMIT:
             fillrect_shadow_overflow_frames.add(fid)
             fillrect_shadow_dropped_commands += shadow_count - SHADOW_FILLRECT_SLOT_LIMIT
+            overflow_streak += 1
+            if overflow_streak > max_overflow_streak:
+                max_overflow_streak = overflow_streak
+            if overflow_streak >= 8:
+                overflow_fallback_trigger_frames.add(fid)
+        else:
+            overflow_streak = 0
 
     return {
         "trace_file": str(path),
@@ -390,9 +400,12 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
         "frames_with_fillrect": len(fillrect_frames),
         "frames_with_shadow_fillrect": len(fillrect_shadow_frames),
         "frames_with_shadow_fillrect_overflow": len(fillrect_shadow_overflow_frames),
+        "fillrect_shadow_max_overflow_streak": max_overflow_streak,
+        "fillrect_shadow_overflow_fallback_frames": len(overflow_fallback_trigger_frames),
         "sample_frames_with_fillrect": _first_n_sorted(fillrect_frames, limit=16),
         "sample_frames_with_shadow_fillrect": _first_n_sorted(fillrect_shadow_frames, limit=16),
         "sample_frames_with_shadow_fillrect_overflow": _first_n_sorted(fillrect_shadow_overflow_frames, limit=16),
+        "sample_frames_with_shadow_overflow_fallback": _first_n_sorted(overflow_fallback_trigger_frames, limit=16),
         "fillrect_bounds_px_raw": (
             {
                 "x0": fillrect_global_bounds_raw[0],
@@ -560,6 +573,11 @@ def main() -> int:
         f"dropped_commands={summary['fillrect_shadow_dropped_commands']} "
         f"frames_with_overflow={summary['frames_with_shadow_fillrect_overflow']}"
     )
+    print(
+        "  overflow streaks: "
+        f"max_consecutive={summary['fillrect_shadow_max_overflow_streak']} "
+        f"fallback_frame_hits={summary['fillrect_shadow_overflow_fallback_frames']}"
+    )
     if summary["sample_frames_with_fillrect"]:
         print(
             "  sample_frames_with_fillrect: "
@@ -574,6 +592,11 @@ def main() -> int:
         print(
             "  sample_frames_with_shadow_fillrect_overflow: "
             + ", ".join(str(fid) for fid in summary["sample_frames_with_shadow_fillrect_overflow"])
+        )
+    if summary["sample_frames_with_shadow_overflow_fallback"]:
+        print(
+            "  sample_frames_with_shadow_overflow_fallback: "
+            + ", ".join(str(fid) for fid in summary["sample_frames_with_shadow_overflow_fallback"])
         )
     if summary["fillrect_bounds_px_raw"] is not None:
         bounds = summary["fillrect_bounds_px_raw"]
