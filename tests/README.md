@@ -68,6 +68,12 @@ To also print a shadow mode case entry:
 tests/rom_signature.py /path/to/your.rom.z64 --shadow-mode fill_only
 ```
 
+To combine ROM signature + trace recommendation into one shadow case entry:
+
+```bash
+python3 tests/shadow_profile_suggest.py /path/to/game.z64 /path/to/rdp_n64_sim.txt
+```
+
 ## RDP Trace Replay Validator (Option #3)
 Use the replay validator to inspect simulation command traces emitted by `rtl/RDP.vhd`:
 
