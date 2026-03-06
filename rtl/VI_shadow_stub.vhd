@@ -139,29 +139,106 @@ architecture arch of VI_shadow_stub is
       return accum;
    end function;
 
-   function enhance_copy_component(
-      component : std_logic_vector(7 downto 0)
+   function clamp_u8(
+      value : integer
    ) return unsigned is
-      variable value : unsigned(7 downto 0);
-      variable ret   : unsigned(7 downto 0);
+      variable clipped : integer;
    begin
-      value := unsigned(component);
+      if (value < 0) then
+         clipped := 0;
+      elsif (value > 255) then
+         clipped := 255;
+      else
+         clipped := value;
+      end if;
 
-      if (value >= to_unsigned(16#80#, 8)) then
-         if (value > to_unsigned(16#F3#, 8)) then
-            ret := to_unsigned(16#FF#, 8);
-         else
-            ret := value + to_unsigned(12, 8);
+      return to_unsigned(clipped, 8);
+   end function;
+
+   function shape_copy_component(
+      component : std_logic_vector(7 downto 0);
+      sample_x  : unsigned(10 downto 0);
+      sample_y  : unsigned(9 downto 0);
+      rect_x0   : unsigned(9 downto 0);
+      rect_x1   : unsigned(9 downto 0);
+      rect_y0   : unsigned(8 downto 0);
+      rect_y1   : unsigned(8 downto 0);
+      rect_tile : unsigned(2 downto 0);
+      rect_flip : std_logic
+   ) return unsigned is
+      variable value      : integer;
+      variable result     : integer;
+      variable local_x_2x : integer;
+      variable local_y_2x : integer;
+      variable major_axis : integer;
+      variable minor_axis : integer;
+      variable major_span : integer;
+      variable minor_span : integer;
+      variable phase4     : integer;
+      variable lane4      : integer;
+      variable strength   : integer;
+      variable tile_bias  : integer;
+   begin
+      value := to_integer(unsigned(component));
+      local_x_2x := to_integer(sample_x) - (to_integer(rect_x0) * 2);
+      local_y_2x := to_integer(sample_y) - (to_integer(rect_y0) * 2);
+
+      if (rect_flip = '1') then
+         major_axis := local_y_2x;
+         minor_axis := local_x_2x;
+         major_span := (to_integer(rect_y1) - to_integer(rect_y0) + 1) * 2;
+         minor_span := (to_integer(rect_x1) - to_integer(rect_x0) + 1) * 2;
+      else
+         major_axis := local_x_2x;
+         minor_axis := local_y_2x;
+         major_span := (to_integer(rect_x1) - to_integer(rect_x0) + 1) * 2;
+         minor_span := (to_integer(rect_y1) - to_integer(rect_y0) + 1) * 2;
+      end if;
+
+      tile_bias := to_integer(rect_tile);
+      phase4 := (major_axis + tile_bias) mod 4;
+      lane4 := (minor_axis + to_integer(rect_tile(2 downto 1))) mod 4;
+      strength := 2 + (to_integer(rect_tile(1 downto 0)) * 2);
+
+      if (phase4 = 0 or phase4 = 3) then
+         strength := strength + 2;
+      else
+         strength := strength + 1;
+      end if;
+
+      if (lane4 = 1 or lane4 = 2) then
+         strength := strength + 1;
+      end if;
+
+      if (major_span <= 4 or minor_span <= 4) then
+         strength := strength / 2;
+      end if;
+
+      if (strength > 10) then
+         strength := 10;
+      end if;
+
+      if (value >= 16#80#) then
+         result := value + strength;
+         if (phase4 = lane4) then
+            result := result + 1;
          end if;
       else
-         if (value < to_unsigned(12, 8)) then
-            ret := (others => '0');
-         else
-            ret := value - to_unsigned(12, 8);
+         result := value - strength;
+         if (phase4 = lane4) then
+            result := result - 1;
          end if;
       end if;
 
-      return resize(ret, 10);
+      if (phase4 = 2 and lane4 = 0) then
+         if (value >= 16#80#) then
+            result := result - 2;
+         else
+            result := result + 2;
+         end if;
+      end if;
+
+      return resize(clamp_u8(result), 10);
    end function;
 
    signal checker : std_logic;
@@ -172,10 +249,17 @@ begin
       variable sample_x : unsigned(10 downto 0);
       variable sample_y : unsigned(9 downto 0);
       variable sample_hit : boolean;
+      variable sample_texrect_hit : boolean;
       variable aggregate_hit : boolean;
       variable have_fillrect_slots : boolean;
       variable have_texrect_slots : boolean;
       variable sample_fill_color : unsigned(23 downto 0);
+      variable sample_texrect_x0 : unsigned(9 downto 0);
+      variable sample_texrect_x1 : unsigned(9 downto 0);
+      variable sample_texrect_y0 : unsigned(8 downto 0);
+      variable sample_texrect_y1 : unsigned(8 downto 0);
+      variable sample_texrect_tile : unsigned(2 downto 0);
+      variable sample_texrect_flip : std_logic;
       variable fill_coverage_count : unsigned(2 downto 0);
       variable texrect_coverage_count : unsigned(2 downto 0);
       variable native_weight : unsigned(2 downto 0);
@@ -218,7 +302,14 @@ begin
                sample_x := (resize(xpos, 11) sll 1) + to_unsigned(sx, 11);
                sample_y := (resize(ypos, 10) sll 1) + to_unsigned(sy, 10);
                sample_hit := false;
+               sample_texrect_hit := false;
                sample_fill_color := fill_color;
+               sample_texrect_x0 := texrect_x0;
+               sample_texrect_x1 := texrect_x1;
+               sample_texrect_y0 := texrect_y0;
+               sample_texrect_y1 := texrect_y1;
+               sample_texrect_tile := (others => '0');
+               sample_texrect_flip := '0';
 
                if (inside_fillrect_2x(sample_x, sample_y, fillrect3_valid, fillrect3_x0, fillrect3_x1, fillrect3_y0, fillrect3_y1)) then
                   sample_hit := true;
@@ -237,6 +328,43 @@ begin
                   sample_fill_color := fillrect0_color;
                end if;
 
+               if (inside_fillrect_2x(sample_x, sample_y, texrect3_valid, texrect3_x0, texrect3_x1, texrect3_y0, texrect3_y1)) then
+                  sample_texrect_hit := true;
+                  sample_texrect_x0 := texrect3_x0;
+                  sample_texrect_x1 := texrect3_x1;
+                  sample_texrect_y0 := texrect3_y0;
+                  sample_texrect_y1 := texrect3_y1;
+                  sample_texrect_tile := texrect3_tile;
+                  sample_texrect_flip := texrect3_flip;
+               end if;
+               if (inside_fillrect_2x(sample_x, sample_y, texrect2_valid, texrect2_x0, texrect2_x1, texrect2_y0, texrect2_y1)) then
+                  sample_texrect_hit := true;
+                  sample_texrect_x0 := texrect2_x0;
+                  sample_texrect_x1 := texrect2_x1;
+                  sample_texrect_y0 := texrect2_y0;
+                  sample_texrect_y1 := texrect2_y1;
+                  sample_texrect_tile := texrect2_tile;
+                  sample_texrect_flip := texrect2_flip;
+               end if;
+               if (inside_fillrect_2x(sample_x, sample_y, texrect1_valid, texrect1_x0, texrect1_x1, texrect1_y0, texrect1_y1)) then
+                  sample_texrect_hit := true;
+                  sample_texrect_x0 := texrect1_x0;
+                  sample_texrect_x1 := texrect1_x1;
+                  sample_texrect_y0 := texrect1_y0;
+                  sample_texrect_y1 := texrect1_y1;
+                  sample_texrect_tile := texrect1_tile;
+                  sample_texrect_flip := texrect1_flip;
+               end if;
+               if (inside_fillrect_2x(sample_x, sample_y, texrect0_valid, texrect0_x0, texrect0_x1, texrect0_y0, texrect0_y1)) then
+                  sample_texrect_hit := true;
+                  sample_texrect_x0 := texrect0_x0;
+                  sample_texrect_x1 := texrect0_x1;
+                  sample_texrect_y0 := texrect0_y0;
+                  sample_texrect_y1 := texrect0_y1;
+                  sample_texrect_tile := texrect0_tile;
+                  sample_texrect_flip := texrect0_flip;
+               end if;
+
                if (sample_hit = false and have_fillrect_slots = false) then
                   aggregate_hit := inside_fillrect_2x(sample_x, sample_y, fillrect_valid, fillrect_x0, fillrect_x1, fillrect_y0, fillrect_y1);
                   if (fillrect_count /= 0 and aggregate_hit) then
@@ -245,25 +373,23 @@ begin
                   end if;
                end if;
 
+               if (sample_texrect_hit = false and have_texrect_slots = false) then
+                  aggregate_hit := inside_fillrect_2x(sample_x, sample_y, texrect_valid, texrect_x0, texrect_x1, texrect_y0, texrect_y1);
+                  if (texrect_count /= 0 and aggregate_hit) then
+                     sample_texrect_hit := true;
+                  end if;
+               end if;
+
                if (sample_hit) then
                   fill_coverage_count := fill_coverage_count + 1;
                   fill_sum_r := fill_sum_r + resize(sample_fill_color(23 downto 16), 10);
                   fill_sum_g := fill_sum_g + resize(sample_fill_color(15 downto 8), 10);
                   fill_sum_b := fill_sum_b + resize(sample_fill_color(7 downto 0), 10);
-               elsif (
-                  shadow_mode = "10" and
-                  (
-                     inside_fillrect_2x(sample_x, sample_y, texrect3_valid, texrect3_x0, texrect3_x1, texrect3_y0, texrect3_y1) or
-                     inside_fillrect_2x(sample_x, sample_y, texrect2_valid, texrect2_x0, texrect2_x1, texrect2_y0, texrect2_y1) or
-                     inside_fillrect_2x(sample_x, sample_y, texrect1_valid, texrect1_x0, texrect1_x1, texrect1_y0, texrect1_y1) or
-                     inside_fillrect_2x(sample_x, sample_y, texrect0_valid, texrect0_x0, texrect0_x1, texrect0_y0, texrect0_y1) or
-                     (have_texrect_slots = false and texrect_count /= 0 and inside_fillrect_2x(sample_x, sample_y, texrect_valid, texrect_x0, texrect_x1, texrect_y0, texrect_y1))
-                  )
-               ) then
+               elsif (shadow_mode = "10" and sample_texrect_hit) then
                   texrect_coverage_count := texrect_coverage_count + 1;
-                  copy_sum_r := copy_sum_r + enhance_copy_component(pixel_in_r);
-                  copy_sum_g := copy_sum_g + enhance_copy_component(pixel_in_g);
-                  copy_sum_b := copy_sum_b + enhance_copy_component(pixel_in_b);
+                  copy_sum_r := copy_sum_r + shape_copy_component(pixel_in_r, sample_x, sample_y, sample_texrect_x0, sample_texrect_x1, sample_texrect_y0, sample_texrect_y1, sample_texrect_tile, sample_texrect_flip);
+                  copy_sum_g := copy_sum_g + shape_copy_component(pixel_in_g, sample_x, sample_y, sample_texrect_x0, sample_texrect_x1, sample_texrect_y0, sample_texrect_y1, sample_texrect_tile, sample_texrect_flip);
+                  copy_sum_b := copy_sum_b + shape_copy_component(pixel_in_b, sample_x, sample_y, sample_texrect_x0, sample_texrect_x1, sample_texrect_y0, sample_texrect_y1, sample_texrect_tile, sample_texrect_flip);
                end if;
             end loop;
          end loop;

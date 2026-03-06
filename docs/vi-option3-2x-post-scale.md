@@ -137,18 +137,18 @@ Changes:
   - `VI_shadow_stub` module for shadow RGB generation
   - stub fallback behavior is mode-aware:
     - `fill_only`: checker fallback when no fill metadata is present
-    - `fill_copy`: pass-through fallback when no fill metadata is present
+    - `fill_copy`: pass-through fallback when no texrect metadata is present
   - RDP per-frame fill metadata (`fillrect_count`, `fill_color`) piped into shadow path
   - RDP per-frame texture-rectangle command count (`texrect_count`) piped into overlay telemetry
   - RDP per-frame aggregate texture-rectangle bounds are piped into the shadow path after scissor clipping
-  - latest-four clipped texture rectangles are forwarded each frame for command-aware copy-region masking priority
+  - latest-four clipped texture rectangles are forwarded each frame with tile index and flip metadata for command-aware copy-region masking priority
   - per-frame dropped counter reports clipped texrect commands that overflow the 4-slot list
   - RDP per-frame fill bounds (`x0/x1/y0/y1`, valid bit) piped into shadow path
   - fill bounds converted from RDP 10.2 fixed-point into VI pixel coordinates before masking
   - fill bounds are clipped against the active RDP scissor region before masking
   - latest-four clipped fill rectangles (with per-rectangle colors) are forwarded each frame for command-aware masking priority
   - fill-rectangle subset now rasterizes four 2x subpixels per output pixel and composites coverage back onto the native pixel; aggregate fill bounds are only used when the list is empty
-  - copy subset now uses texrect coverage to drive a bounded placeholder enhancement inside copy regions until true texture replay exists; aggregate texrect bounds are only used when the list is empty
+  - copy subset now uses texrect-local 2x phase shaping keyed by the captured tile index and flip form; aggregate texrect bounds are only used when the list is empty, and this remains a bounded placeholder until true texture replay exists
   - per-frame dropped counter reports clipped fillrect commands that overflow the 4-slot list
   - timing remains sourced from native VI output path
 
