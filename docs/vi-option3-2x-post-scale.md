@@ -60,6 +60,7 @@ Changes:
   - `U` = last frame unsupported-command count
   - `Q` = last frame fill-rectangle command count
   - `V` = last frame fill-rectangle bounds-valid bit
+  - `W` = consecutive output frames without shadow frame-strobe
 - Fallback reason encoding (current PoC):
   - `1`: unsupported VI mode (`VI_CTRL_TYPE=0` or zero width)
   - `2`: VI processing error (`error_linefetch`/`error_outProcess`)
