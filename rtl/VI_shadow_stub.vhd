@@ -50,78 +50,151 @@ entity VI_shadow_stub is
 end entity;
 
 architecture arch of VI_shadow_stub is
+   function inside_fillrect_2x(
+      sample_x   : unsigned(10 downto 0);
+      sample_y   : unsigned(9 downto 0);
+      rect_valid : std_logic;
+      rect_x0    : unsigned(9 downto 0);
+      rect_x1    : unsigned(9 downto 0);
+      rect_y0    : unsigned(8 downto 0);
+      rect_y1    : unsigned(8 downto 0)
+   ) return boolean is
+      variable rect_x0_2x : unsigned(10 downto 0);
+      variable rect_x1_2x : unsigned(10 downto 0);
+      variable rect_y0_2x : unsigned(9 downto 0);
+      variable rect_y1_2x : unsigned(9 downto 0);
+   begin
+      if (rect_valid = '0') then
+         return false;
+      end if;
+
+      rect_x0_2x := resize(rect_x0, 11) sll 1;
+      rect_x1_2x := (resize(rect_x1, 11) sll 1) + 1;
+      rect_y0_2x := resize(rect_y0, 10) sll 1;
+      rect_y1_2x := (resize(rect_y1, 10) sll 1) + 1;
+
+      return (sample_x >= rect_x0_2x) and (sample_x <= rect_x1_2x) and
+             (sample_y >= rect_y0_2x) and (sample_y <= rect_y1_2x);
+   end function;
+
+   function mul_u8_by_weight(
+      component : std_logic_vector(7 downto 0);
+      weight    : unsigned(2 downto 0)
+   ) return unsigned is
+      variable accum : unsigned(9 downto 0);
+      variable value : unsigned(9 downto 0);
+   begin
+      accum := (others => '0');
+      value := resize(unsigned(component), 10);
+
+      case weight is
+         when "000" =>
+            null;
+         when "001" =>
+            accum := value;
+         when "010" =>
+            accum := value + value;
+         when "011" =>
+            accum := value + value + value;
+         when "100" =>
+            accum := value + value + value + value;
+         when others =>
+            null;
+      end case;
+
+      return accum;
+   end function;
+
    signal checker : std_logic;
 begin
    checker <= xpos(0) xor ypos(0);
 
    process (all)
-      variable mix_r : unsigned(8 downto 0);
-      variable mix_g : unsigned(8 downto 0);
-      variable mix_b : unsigned(8 downto 0);
-      variable inside_fillrect : boolean;
-      variable inside_fillrect0 : boolean;
-      variable inside_fillrect1 : boolean;
-      variable inside_fillrect2 : boolean;
-      variable inside_fillrect3 : boolean;
-      variable use_fill_color : boolean;
-      variable selected_fill_color : unsigned(23 downto 0);
+      variable sample_x : unsigned(10 downto 0);
+      variable sample_y : unsigned(9 downto 0);
+      variable sample_hit : boolean;
+      variable aggregate_hit : boolean;
+      variable sample_fill_color : unsigned(23 downto 0);
+      variable coverage_count : unsigned(2 downto 0);
+      variable native_weight : unsigned(2 downto 0);
+      variable fill_sum_r : unsigned(9 downto 0);
+      variable fill_sum_g : unsigned(9 downto 0);
+      variable fill_sum_b : unsigned(9 downto 0);
+      variable native_mul_r : unsigned(9 downto 0);
+      variable native_mul_g : unsigned(9 downto 0);
+      variable native_mul_b : unsigned(9 downto 0);
+      variable blend_r : unsigned(9 downto 0);
+      variable blend_g : unsigned(9 downto 0);
+      variable blend_b : unsigned(9 downto 0);
    begin
       pixel_out_r <= pixel_in_r;
       pixel_out_g <= pixel_in_g;
       pixel_out_b <= pixel_in_b;
 
       if (enable = '1') then
-         use_fill_color := false;
-         selected_fill_color := fill_color;
-         inside_fillrect0 :=
-            (xpos >= fillrect0_x0) and (xpos <= fillrect0_x1) and
-            (ypos >= fillrect0_y0) and (ypos <= fillrect0_y1);
-         inside_fillrect1 :=
-            (xpos >= fillrect1_x0) and (xpos <= fillrect1_x1) and
-            (ypos >= fillrect1_y0) and (ypos <= fillrect1_y1);
-         inside_fillrect2 :=
-            (xpos >= fillrect2_x0) and (xpos <= fillrect2_x1) and
-            (ypos >= fillrect2_y0) and (ypos <= fillrect2_y1);
-         inside_fillrect3 :=
-            (xpos >= fillrect3_x0) and (xpos <= fillrect3_x1) and
-            (ypos >= fillrect3_y0) and (ypos <= fillrect3_y1);
-         if (fillrect3_valid = '1' and inside_fillrect3) then
-            use_fill_color := true;
-            selected_fill_color := fillrect3_color;
-         end if;
-         if (fillrect2_valid = '1' and inside_fillrect2) then
-            use_fill_color := true;
-            selected_fill_color := fillrect2_color;
-         end if;
-         if (fillrect1_valid = '1' and inside_fillrect1) then
-            use_fill_color := true;
-            selected_fill_color := fillrect1_color;
-         end if;
-         if (fillrect0_valid = '1' and inside_fillrect0) then
-            use_fill_color := true;
-            selected_fill_color := fillrect0_color;
-         end if;
+         coverage_count := (others => '0');
+         fill_sum_r := (others => '0');
+         fill_sum_g := (others => '0');
+         fill_sum_b := (others => '0');
 
-         -- Fallback to aggregate rectangle metadata when slot list is empty.
-         if (use_fill_color = false and fillrect_count /= 0 and fillrect_valid = '1') then
-            inside_fillrect :=
-               (xpos >= fillrect_x0) and (xpos <= fillrect_x1) and
-               (ypos >= fillrect_y0) and (ypos <= fillrect_y1);
-            if (inside_fillrect) then
-               use_fill_color := true;
-               selected_fill_color := fill_color;
-            end if;
-         end if;
+         -- Rasterize four 2x subpixels per output pixel. This keeps the current
+         -- native timing while making the fill-rectangle subset genuinely
+         -- command-driven and internally supersampled.
+         for sy in 0 to 1 loop
+            for sx in 0 to 1 loop
+               sample_x := (resize(xpos, 11) sll 1) + to_unsigned(sx, 11);
+               sample_y := (resize(ypos, 10) sll 1) + to_unsigned(sy, 10);
+               sample_hit := false;
+               sample_fill_color := fill_color;
 
-         if (use_fill_color) then
-            -- Command-driven regional effect using fill-rectangle metadata.
-            mix_r := ('0' & unsigned(pixel_in_r)) + ('0' & selected_fill_color(23 downto 16));
-            mix_g := ('0' & unsigned(pixel_in_g)) + ('0' & selected_fill_color(15 downto 8));
-            mix_b := ('0' & unsigned(pixel_in_b)) + ('0' & selected_fill_color(7 downto 0));
-            pixel_out_r <= std_logic_vector(mix_r(8 downto 1));
-            pixel_out_g <= std_logic_vector(mix_g(8 downto 1));
-            pixel_out_b <= std_logic_vector(mix_b(8 downto 1));
-         elsif (shadow_mode = "01") then
+               if (inside_fillrect_2x(sample_x, sample_y, fillrect3_valid, fillrect3_x0, fillrect3_x1, fillrect3_y0, fillrect3_y1)) then
+                  sample_hit := true;
+                  sample_fill_color := fillrect3_color;
+               end if;
+               if (inside_fillrect_2x(sample_x, sample_y, fillrect2_valid, fillrect2_x0, fillrect2_x1, fillrect2_y0, fillrect2_y1)) then
+                  sample_hit := true;
+                  sample_fill_color := fillrect2_color;
+               end if;
+               if (inside_fillrect_2x(sample_x, sample_y, fillrect1_valid, fillrect1_x0, fillrect1_x1, fillrect1_y0, fillrect1_y1)) then
+                  sample_hit := true;
+                  sample_fill_color := fillrect1_color;
+               end if;
+               if (inside_fillrect_2x(sample_x, sample_y, fillrect0_valid, fillrect0_x0, fillrect0_x1, fillrect0_y0, fillrect0_y1)) then
+                  sample_hit := true;
+                  sample_fill_color := fillrect0_color;
+               end if;
+
+               if (sample_hit = false) then
+                  aggregate_hit := inside_fillrect_2x(sample_x, sample_y, fillrect_valid, fillrect_x0, fillrect_x1, fillrect_y0, fillrect_y1);
+                  if (fillrect_count /= 0 and aggregate_hit) then
+                     sample_hit := true;
+                     sample_fill_color := fill_color;
+                  end if;
+               end if;
+
+               if (sample_hit) then
+                  coverage_count := coverage_count + 1;
+                  fill_sum_r := fill_sum_r + resize(sample_fill_color(23 downto 16), 10);
+                  fill_sum_g := fill_sum_g + resize(sample_fill_color(15 downto 8), 10);
+                  fill_sum_b := fill_sum_b + resize(sample_fill_color(7 downto 0), 10);
+               end if;
+            end loop;
+         end loop;
+
+         if (coverage_count /= 0) then
+            native_weight := to_unsigned(4, 3) - coverage_count;
+            native_mul_r := mul_u8_by_weight(pixel_in_r, native_weight);
+            native_mul_g := mul_u8_by_weight(pixel_in_g, native_weight);
+            native_mul_b := mul_u8_by_weight(pixel_in_b, native_weight);
+
+            blend_r := native_mul_r + fill_sum_r;
+            blend_g := native_mul_g + fill_sum_g;
+            blend_b := native_mul_b + fill_sum_b;
+
+            pixel_out_r <= std_logic_vector(blend_r(9 downto 2));
+            pixel_out_g <= std_logic_vector(blend_g(9 downto 2));
+            pixel_out_b <= std_logic_vector(blend_b(9 downto 2));
+         elsif (shadow_mode = "01" and fillrect_count = 0) then
             pixel_out_g <= '0' & pixel_in_g(7 downto 1);
             pixel_out_b <= pixel_in_b(7 downto 1) & checker;
          end if;

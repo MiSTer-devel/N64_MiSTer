@@ -133,7 +133,7 @@ Changes:
 - Keep unsupported commands on native output path.
 - Initial scaffolding implemented:
   - native/shadow display mux in `VI_videoout`
-  - `VI_shadow_stub` module for shadow RGB generation (currently tint/checker)
+  - `VI_shadow_stub` module for shadow RGB generation
   - stub fallback behavior is mode-aware:
     - `fill_only`: checker fallback when no fill metadata is present
     - `fill_copy`: pass-through fallback when no fill metadata is present
@@ -143,6 +143,7 @@ Changes:
   - fill bounds converted from RDP 10.2 fixed-point into VI pixel coordinates before masking
   - fill bounds are clipped against the active RDP scissor region before masking
   - latest-four clipped fill rectangles (with per-rectangle colors) are forwarded each frame for command-aware masking priority
+  - fill-rectangle subset now rasterizes four 2x subpixels per output pixel and composites coverage back onto the native pixel
   - per-frame dropped counter reports clipped fillrect commands that overflow the 4-slot list
   - timing remains sourced from native VI output path
 
