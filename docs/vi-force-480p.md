@@ -2,6 +2,8 @@
 
 Date: 2026-03-05
 
+Note: "Option #3" (2x post-scale enhancement path) is documented separately in `docs/vi-option3-2x-post-scale.md`.
+
 ## Goal
 Ship a safe, per-ROM opt-in experimental VI path that can improve 480i/direct-FB output behavior without changing default behavior for other titles.
 
