@@ -29,6 +29,18 @@ entity VI_shadow_stub is
       fillrect1_y0 : in unsigned(8 downto 0);
       fillrect1_y1 : in unsigned(8 downto 0);
       fillrect1_color : in unsigned(23 downto 0);
+      fillrect2_valid : in std_logic;
+      fillrect2_x0 : in unsigned(9 downto 0);
+      fillrect2_x1 : in unsigned(9 downto 0);
+      fillrect2_y0 : in unsigned(8 downto 0);
+      fillrect2_y1 : in unsigned(8 downto 0);
+      fillrect2_color : in unsigned(23 downto 0);
+      fillrect3_valid : in std_logic;
+      fillrect3_x0 : in unsigned(9 downto 0);
+      fillrect3_x1 : in unsigned(9 downto 0);
+      fillrect3_y0 : in unsigned(8 downto 0);
+      fillrect3_y1 : in unsigned(8 downto 0);
+      fillrect3_color : in unsigned(23 downto 0);
       xpos        : in  unsigned(9 downto 0);
       ypos        : in  unsigned(8 downto 0);
       pixel_out_r : out std_logic_vector(7 downto 0);
@@ -49,6 +61,8 @@ begin
       variable inside_fillrect : boolean;
       variable inside_fillrect0 : boolean;
       variable inside_fillrect1 : boolean;
+      variable inside_fillrect2 : boolean;
+      variable inside_fillrect3 : boolean;
       variable use_fill_color : boolean;
       variable selected_fill_color : unsigned(23 downto 0);
    begin
@@ -65,6 +79,20 @@ begin
          inside_fillrect1 :=
             (xpos >= fillrect1_x0) and (xpos <= fillrect1_x1) and
             (ypos >= fillrect1_y0) and (ypos <= fillrect1_y1);
+         inside_fillrect2 :=
+            (xpos >= fillrect2_x0) and (xpos <= fillrect2_x1) and
+            (ypos >= fillrect2_y0) and (ypos <= fillrect2_y1);
+         inside_fillrect3 :=
+            (xpos >= fillrect3_x0) and (xpos <= fillrect3_x1) and
+            (ypos >= fillrect3_y0) and (ypos <= fillrect3_y1);
+         if (fillrect3_valid = '1' and inside_fillrect3) then
+            use_fill_color := true;
+            selected_fill_color := fillrect3_color;
+         end if;
+         if (fillrect2_valid = '1' and inside_fillrect2) then
+            use_fill_color := true;
+            selected_fill_color := fillrect2_color;
+         end if;
          if (fillrect1_valid = '1' and inside_fillrect1) then
             use_fill_color := true;
             selected_fill_color := fillrect1_color;

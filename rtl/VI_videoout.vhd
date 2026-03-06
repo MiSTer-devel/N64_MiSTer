@@ -69,6 +69,18 @@ entity VI_videoout is
       VI_SHADOW_FILLRECT1_Y0           : in  unsigned(8 downto 0);
       VI_SHADOW_FILLRECT1_Y1           : in  unsigned(8 downto 0);
       VI_SHADOW_FILLRECT1_COLOR        : in  unsigned(23 downto 0);
+      VI_SHADOW_FILLRECT2_VALID        : in  std_logic;
+      VI_SHADOW_FILLRECT2_X0           : in  unsigned(9 downto 0);
+      VI_SHADOW_FILLRECT2_X1           : in  unsigned(9 downto 0);
+      VI_SHADOW_FILLRECT2_Y0           : in  unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT2_Y1           : in  unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT2_COLOR        : in  unsigned(23 downto 0);
+      VI_SHADOW_FILLRECT3_VALID        : in  std_logic;
+      VI_SHADOW_FILLRECT3_X0           : in  unsigned(9 downto 0);
+      VI_SHADOW_FILLRECT3_X1           : in  unsigned(9 downto 0);
+      VI_SHADOW_FILLRECT3_Y0           : in  unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT3_Y1           : in  unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT3_COLOR        : in  unsigned(23 downto 0);
       VI_SHADOW_FILLRECT_DROPPED       : in  unsigned(15 downto 0);
                   
       VI_CTRL_TYPE                     : in  unsigned(1 downto 0);
@@ -357,6 +369,18 @@ begin
       fillrect1_y0 => VI_SHADOW_FILLRECT1_Y0,
       fillrect1_y1 => VI_SHADOW_FILLRECT1_Y1,
       fillrect1_color => VI_SHADOW_FILLRECT1_COLOR,
+      fillrect2_valid => VI_SHADOW_FILLRECT2_VALID,
+      fillrect2_x0 => VI_SHADOW_FILLRECT2_X0,
+      fillrect2_x1 => VI_SHADOW_FILLRECT2_X1,
+      fillrect2_y0 => VI_SHADOW_FILLRECT2_Y0,
+      fillrect2_y1 => VI_SHADOW_FILLRECT2_Y1,
+      fillrect2_color => VI_SHADOW_FILLRECT2_COLOR,
+      fillrect3_valid => VI_SHADOW_FILLRECT3_VALID,
+      fillrect3_x0 => VI_SHADOW_FILLRECT3_X0,
+      fillrect3_x1 => VI_SHADOW_FILLRECT3_X1,
+      fillrect3_y0 => VI_SHADOW_FILLRECT3_Y0,
+      fillrect3_y1 => VI_SHADOW_FILLRECT3_Y1,
+      fillrect3_color => VI_SHADOW_FILLRECT3_COLOR,
       xpos        => overlay_xpos,
       ypos        => overlay_ypos,
       pixel_out_r => shadow_stub_r,

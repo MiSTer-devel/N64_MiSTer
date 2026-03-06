@@ -60,14 +60,14 @@ Changes:
   - `U` = last frame unsupported-command count
   - `Q` = last frame fill-rectangle command count
   - `V` = last frame fill-rectangle bounds-valid bit
-  - `L` = last frame fill-rectangle commands dropped by 2-slot shadow list
+  - `L` = last frame fill-rectangle commands dropped by 4-slot shadow list
   - `W` = consecutive output frames without shadow frame-strobe
 - Fallback reason encoding (current PoC):
   - `1`: unsupported VI mode (`VI_CTRL_TYPE=0` or zero width)
   - `2`: VI processing error (`error_linefetch`/`error_outProcess`)
   - `3`: frame uses RDP commands outside current shadow subset
   - `4`: shadow frame-strobe watchdog timeout (no strobe observed for 8 consecutive output frames)
-  - `5`: persistent fillrect-list overflow (dropped fill commands for 8 consecutive shadow frames)
+  - `5`: persistent fillrect-list overflow (dropped fill commands for 8 consecutive shadow frames with 4-slot list)
 - Shadow subset mode mapping (current PoC):
   - mode `01`: `fill_only`
   - mode `10`: `fill_copy`
@@ -139,8 +139,8 @@ Changes:
   - RDP per-frame fill bounds (`x0/x1/y0/y1`, valid bit) piped into shadow path
   - fill bounds converted from RDP 10.2 fixed-point into VI pixel coordinates before masking
   - fill bounds are clipped against the active RDP scissor region before masking
-  - latest-two clipped fill rectangles (with per-rectangle colors) are forwarded each frame for command-aware masking priority
-  - per-frame dropped counter reports clipped fillrect commands that overflow the 2-slot list
+  - latest-four clipped fill rectangles (with per-rectangle colors) are forwarded each frame for command-aware masking priority
+  - per-frame dropped counter reports clipped fillrect commands that overflow the 4-slot list
   - timing remains sourced from native VI output path
 
 Acceptance:
@@ -207,7 +207,7 @@ Acceptance:
 2. Run trace analysis:
    - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt`
    - check `aggregate_fillrect_bounds_px` in the summary to validate region alignment against expected UI/gameplay areas
-   - check `shadow-slot overflow` metrics; high dropped-command counts indicate 2-slot list pressure
+   - check `shadow-slot overflow` metrics; high dropped-command counts indicate 4-slot list pressure
 3. Read recommendation:
    - `fill_only` => use shadow mode `2'b01`
    - `fill_copy` => use shadow mode `2'b10`

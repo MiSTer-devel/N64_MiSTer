@@ -112,7 +112,7 @@ class FrameState:
     fillrect_shadow_y1: int | None = None
 
 
-SHADOW_FILLRECT_SLOT_LIMIT = 2
+SHADOW_FILLRECT_SLOT_LIMIT = 4
 
 
 def _opcode_from_command(data64: int) -> int:

@@ -63,6 +63,18 @@ entity VI is
       VI_SHADOW_FILLRECT1_Y0 : in unsigned(8 downto 0);
       VI_SHADOW_FILLRECT1_Y1 : in unsigned(8 downto 0);
       VI_SHADOW_FILLRECT1_COLOR : in unsigned(23 downto 0);
+      VI_SHADOW_FILLRECT2_VALID : in std_logic;
+      VI_SHADOW_FILLRECT2_X0 : in unsigned(9 downto 0);
+      VI_SHADOW_FILLRECT2_X1 : in unsigned(9 downto 0);
+      VI_SHADOW_FILLRECT2_Y0 : in unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT2_Y1 : in unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT2_COLOR : in unsigned(23 downto 0);
+      VI_SHADOW_FILLRECT3_VALID : in std_logic;
+      VI_SHADOW_FILLRECT3_X0 : in unsigned(9 downto 0);
+      VI_SHADOW_FILLRECT3_X1 : in unsigned(9 downto 0);
+      VI_SHADOW_FILLRECT3_Y0 : in unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT3_Y1 : in unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT3_COLOR : in unsigned(23 downto 0);
       VI_SHADOW_FILLRECT_DROPPED : in unsigned(15 downto 0);
       
       errorEna         : in  std_logic;
@@ -570,6 +582,18 @@ begin
       VI_SHADOW_FILLRECT1_Y0           => VI_SHADOW_FILLRECT1_Y0,
       VI_SHADOW_FILLRECT1_Y1           => VI_SHADOW_FILLRECT1_Y1,
       VI_SHADOW_FILLRECT1_COLOR        => VI_SHADOW_FILLRECT1_COLOR,
+      VI_SHADOW_FILLRECT2_VALID        => VI_SHADOW_FILLRECT2_VALID,
+      VI_SHADOW_FILLRECT2_X0           => VI_SHADOW_FILLRECT2_X0,
+      VI_SHADOW_FILLRECT2_X1           => VI_SHADOW_FILLRECT2_X1,
+      VI_SHADOW_FILLRECT2_Y0           => VI_SHADOW_FILLRECT2_Y0,
+      VI_SHADOW_FILLRECT2_Y1           => VI_SHADOW_FILLRECT2_Y1,
+      VI_SHADOW_FILLRECT2_COLOR        => VI_SHADOW_FILLRECT2_COLOR,
+      VI_SHADOW_FILLRECT3_VALID        => VI_SHADOW_FILLRECT3_VALID,
+      VI_SHADOW_FILLRECT3_X0           => VI_SHADOW_FILLRECT3_X0,
+      VI_SHADOW_FILLRECT3_X1           => VI_SHADOW_FILLRECT3_X1,
+      VI_SHADOW_FILLRECT3_Y0           => VI_SHADOW_FILLRECT3_Y0,
+      VI_SHADOW_FILLRECT3_Y1           => VI_SHADOW_FILLRECT3_Y1,
+      VI_SHADOW_FILLRECT3_COLOR        => VI_SHADOW_FILLRECT3_COLOR,
       VI_SHADOW_FILLRECT_DROPPED       => VI_SHADOW_FILLRECT_DROPPED,
                   
       VI_CTRL_TYPE                     => VIE_CTRL_TYPE,
