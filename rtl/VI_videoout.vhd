@@ -57,6 +57,18 @@ entity VI_videoout is
       VI_SHADOW_FILLRECT_X1            : in  unsigned(9 downto 0);
       VI_SHADOW_FILLRECT_Y0            : in  unsigned(8 downto 0);
       VI_SHADOW_FILLRECT_Y1            : in  unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT0_VALID        : in  std_logic;
+      VI_SHADOW_FILLRECT0_X0           : in  unsigned(9 downto 0);
+      VI_SHADOW_FILLRECT0_X1           : in  unsigned(9 downto 0);
+      VI_SHADOW_FILLRECT0_Y0           : in  unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT0_Y1           : in  unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT0_COLOR        : in  unsigned(23 downto 0);
+      VI_SHADOW_FILLRECT1_VALID        : in  std_logic;
+      VI_SHADOW_FILLRECT1_X0           : in  unsigned(9 downto 0);
+      VI_SHADOW_FILLRECT1_X1           : in  unsigned(9 downto 0);
+      VI_SHADOW_FILLRECT1_Y0           : in  unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT1_Y1           : in  unsigned(8 downto 0);
+      VI_SHADOW_FILLRECT1_COLOR        : in  unsigned(23 downto 0);
                   
       VI_CTRL_TYPE                     : in  unsigned(1 downto 0);
       VI_CTRL_AA_MODE                  : in  unsigned(1 downto 0);
@@ -330,6 +342,18 @@ begin
       fillrect_x1 => VI_SHADOW_FILLRECT_X1,
       fillrect_y0 => VI_SHADOW_FILLRECT_Y0,
       fillrect_y1 => VI_SHADOW_FILLRECT_Y1,
+      fillrect0_valid => VI_SHADOW_FILLRECT0_VALID,
+      fillrect0_x0 => VI_SHADOW_FILLRECT0_X0,
+      fillrect0_x1 => VI_SHADOW_FILLRECT0_X1,
+      fillrect0_y0 => VI_SHADOW_FILLRECT0_Y0,
+      fillrect0_y1 => VI_SHADOW_FILLRECT0_Y1,
+      fillrect0_color => VI_SHADOW_FILLRECT0_COLOR,
+      fillrect1_valid => VI_SHADOW_FILLRECT1_VALID,
+      fillrect1_x0 => VI_SHADOW_FILLRECT1_X0,
+      fillrect1_x1 => VI_SHADOW_FILLRECT1_X1,
+      fillrect1_y0 => VI_SHADOW_FILLRECT1_Y0,
+      fillrect1_y1 => VI_SHADOW_FILLRECT1_Y1,
+      fillrect1_color => VI_SHADOW_FILLRECT1_COLOR,
       xpos        => overlay_xpos,
       ypos        => overlay_ypos,
       pixel_out_r => shadow_stub_r,

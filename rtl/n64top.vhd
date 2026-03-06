@@ -491,6 +491,18 @@ architecture arch of n64top is
    signal VI_shadow_fillrect_x1      : unsigned(9 downto 0) := (others => '0');
    signal VI_shadow_fillrect_y0      : unsigned(8 downto 0) := (others => '0');
    signal VI_shadow_fillrect_y1      : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_fillrect0_valid  : std_logic := '0';
+   signal VI_shadow_fillrect0_x0     : unsigned(9 downto 0) := (others => '0');
+   signal VI_shadow_fillrect0_x1     : unsigned(9 downto 0) := (others => '0');
+   signal VI_shadow_fillrect0_y0     : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_fillrect0_y1     : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_fillrect0_color  : unsigned(23 downto 0) := (others => '0');
+   signal VI_shadow_fillrect1_valid  : std_logic := '0';
+   signal VI_shadow_fillrect1_x0     : unsigned(9 downto 0) := (others => '0');
+   signal VI_shadow_fillrect1_x1     : unsigned(9 downto 0) := (others => '0');
+   signal VI_shadow_fillrect1_y0     : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_fillrect1_y1     : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_fillrect1_color  : unsigned(23 downto 0) := (others => '0');
    
    -- cpu
    signal ce_intern              : std_logic := '0';
@@ -739,6 +751,18 @@ begin
       VI_SHADOW_FILLRECT_X1       => VI_shadow_fillrect_x1,
       VI_SHADOW_FILLRECT_Y0       => VI_shadow_fillrect_y0,
       VI_SHADOW_FILLRECT_Y1       => VI_shadow_fillrect_y1,
+      VI_SHADOW_FILLRECT0_VALID   => VI_shadow_fillrect0_valid,
+      VI_SHADOW_FILLRECT0_X0      => VI_shadow_fillrect0_x0,
+      VI_SHADOW_FILLRECT0_X1      => VI_shadow_fillrect0_x1,
+      VI_SHADOW_FILLRECT0_Y0      => VI_shadow_fillrect0_y0,
+      VI_SHADOW_FILLRECT0_Y1      => VI_shadow_fillrect0_y1,
+      VI_SHADOW_FILLRECT0_COLOR   => VI_shadow_fillrect0_color,
+      VI_SHADOW_FILLRECT1_VALID   => VI_shadow_fillrect1_valid,
+      VI_SHADOW_FILLRECT1_X0      => VI_shadow_fillrect1_x0,
+      VI_SHADOW_FILLRECT1_X1      => VI_shadow_fillrect1_x1,
+      VI_SHADOW_FILLRECT1_Y0      => VI_shadow_fillrect1_y0,
+      VI_SHADOW_FILLRECT1_Y1      => VI_shadow_fillrect1_y1,
+      VI_SHADOW_FILLRECT1_COLOR   => VI_shadow_fillrect1_color,
 
       irq_out              => irqVector(5),
                            
@@ -901,6 +925,18 @@ begin
       VI_SHADOW_FILLRECT_X1 => VI_shadow_fillrect_x1,
       VI_SHADOW_FILLRECT_Y0 => VI_shadow_fillrect_y0,
       VI_SHADOW_FILLRECT_Y1 => VI_shadow_fillrect_y1,
+      VI_SHADOW_FILLRECT0_VALID => VI_shadow_fillrect0_valid,
+      VI_SHADOW_FILLRECT0_X0 => VI_shadow_fillrect0_x0,
+      VI_SHADOW_FILLRECT0_X1 => VI_shadow_fillrect0_x1,
+      VI_SHADOW_FILLRECT0_Y0 => VI_shadow_fillrect0_y0,
+      VI_SHADOW_FILLRECT0_Y1 => VI_shadow_fillrect0_y1,
+      VI_SHADOW_FILLRECT0_COLOR => VI_shadow_fillrect0_color,
+      VI_SHADOW_FILLRECT1_VALID => VI_shadow_fillrect1_valid,
+      VI_SHADOW_FILLRECT1_X0 => VI_shadow_fillrect1_x0,
+      VI_SHADOW_FILLRECT1_X1 => VI_shadow_fillrect1_x1,
+      VI_SHADOW_FILLRECT1_Y0 => VI_shadow_fillrect1_y0,
+      VI_SHADOW_FILLRECT1_Y1 => VI_shadow_fillrect1_y1,
+      VI_SHADOW_FILLRECT1_COLOR => VI_shadow_fillrect1_color,
      
       errorEna             => errorEna, 
       errorCode            => errorCode,

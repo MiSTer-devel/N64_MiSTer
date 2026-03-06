@@ -137,6 +137,7 @@ Changes:
   - RDP per-frame fill bounds (`x0/x1/y0/y1`, valid bit) piped into shadow path
   - fill bounds converted from RDP 10.2 fixed-point into VI pixel coordinates before masking
   - fill bounds are clipped against the active RDP scissor region before masking
+  - latest-two clipped fill rectangles (with per-rectangle colors) are forwarded each frame for command-aware masking priority
   - timing remains sourced from native VI output path
 
 Acceptance:
