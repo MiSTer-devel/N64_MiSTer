@@ -484,6 +484,8 @@ architecture arch of n64top is
    signal RSP2RDP_done           : std_logic;
    signal VI_shadow_frame_strobe : std_logic := '0';
    signal VI_shadow_unsupported_cmds : unsigned(15 downto 0) := (others => '0');
+   signal VI_shadow_fillrect_count   : unsigned(15 downto 0) := (others => '0');
+   signal VI_shadow_fill_color       : unsigned(23 downto 0) := (others => '0');
    
    -- cpu
    signal ce_intern              : std_logic := '0';
@@ -725,6 +727,8 @@ begin
 
       VI_SHADOW_FRAME_STROBE      => VI_shadow_frame_strobe,
       VI_SHADOW_UNSUPPORTED_CMDS  => VI_shadow_unsupported_cmds,
+      VI_SHADOW_FILLRECT_COUNT    => VI_shadow_fillrect_count,
+      VI_SHADOW_FILL_COLOR        => VI_shadow_fill_color,
 
       irq_out              => irqVector(5),
                            
@@ -880,6 +884,8 @@ begin
       VI_SHADOW_MODE => VI_SHADOW_MODE,
       VI_SHADOW_FRAME_STROBE => VI_shadow_frame_strobe,
       VI_SHADOW_UNSUPPORTED_CMDS => VI_shadow_unsupported_cmds,
+      VI_SHADOW_FILLRECT_COUNT => VI_shadow_fillrect_count,
+      VI_SHADOW_FILL_COLOR => VI_shadow_fill_color,
      
       errorEna             => errorEna, 
       errorCode            => errorCode,

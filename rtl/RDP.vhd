@@ -37,6 +37,8 @@ entity RDP is
 
       VI_SHADOW_FRAME_STROBE       : out std_logic := '0';
       VI_SHADOW_UNSUPPORTED_CMDS   : out unsigned(15 downto 0) := (others => '0');
+      VI_SHADOW_FILLRECT_COUNT     : out unsigned(15 downto 0) := (others => '0');
+      VI_SHADOW_FILL_COLOR         : out unsigned(23 downto 0) := (others => '0');
             
       irq_out              : out std_logic := '0';
             
@@ -188,7 +190,10 @@ architecture arch of RDP is
    signal cmdfifo_nearfull          : std_logic;
    signal shadow_cmd_done           : std_logic;
    signal shadow_cmd_opcode         : unsigned(5 downto 0);
+   signal shadow_cmd_data           : unsigned(63 downto 0);
    signal shadow_frame_unsupported_work : unsigned(15 downto 0) := (others => '0');
+   signal shadow_frame_fillrect_work    : unsigned(15 downto 0) := (others => '0');
+   signal shadow_fill_color_work        : unsigned(23 downto 0) := (others => '0');
    
    -- Texture request ram
    signal TextureReqRAMreq          : std_logic;
@@ -797,16 +802,31 @@ begin
 
    process (clk1x)
       variable shadow_next : unsigned(15 downto 0);
+      variable shadow_fillrect_next : unsigned(15 downto 0);
    begin
       if rising_edge(clk1x) then
          VI_SHADOW_FRAME_STROBE <= '0';
 
          if (reset = '1') then
             shadow_frame_unsupported_work <= (others => '0');
+            shadow_frame_fillrect_work    <= (others => '0');
+            shadow_fill_color_work        <= (others => '0');
             VI_SHADOW_UNSUPPORTED_CMDS    <= (others => '0');
+            VI_SHADOW_FILLRECT_COUNT      <= (others => '0');
+            VI_SHADOW_FILL_COLOR          <= (others => '0');
          elsif (ce = '1') then
             if (VI_SHADOW_ENABLE = '1' and (VI_SHADOW_MODE = "01" or VI_SHADOW_MODE = "10")) then
                shadow_next := shadow_frame_unsupported_work;
+               shadow_fillrect_next := shadow_frame_fillrect_work;
+
+               if (shadow_cmd_done = '1' and shadow_cmd_opcode = 6x"37") then
+                  shadow_fill_color_work <= shadow_cmd_data(23 downto 0);
+               end if;
+               if (shadow_cmd_done = '1' and shadow_cmd_opcode = 6x"36") then
+                  if (shadow_fillrect_next /= x"FFFF") then
+                     shadow_fillrect_next := shadow_fillrect_next + 1;
+                  end if;
+               end if;
 
                if (shadow_cmd_done = '1' and (not shadow_opcode_supported(VI_SHADOW_MODE, shadow_cmd_opcode))) then
                   if (shadow_next /= x"FFFF") then
@@ -816,14 +836,22 @@ begin
 
                if (commandSyncFull = '1') then
                   VI_SHADOW_UNSUPPORTED_CMDS <= shadow_next;
+                  VI_SHADOW_FILLRECT_COUNT   <= shadow_fillrect_next;
+                  VI_SHADOW_FILL_COLOR       <= shadow_fill_color_work;
                   VI_SHADOW_FRAME_STROBE     <= '1';
                   shadow_frame_unsupported_work <= (others => '0');
+                  shadow_frame_fillrect_work    <= (others => '0');
                else
                   shadow_frame_unsupported_work <= shadow_next;
+                  shadow_frame_fillrect_work    <= shadow_fillrect_next;
                end if;
             else
                shadow_frame_unsupported_work <= (others => '0');
+               shadow_frame_fillrect_work    <= (others => '0');
+               shadow_fill_color_work        <= (others => '0');
                VI_SHADOW_UNSUPPORTED_CMDS    <= (others => '0');
+               VI_SHADOW_FILLRECT_COUNT      <= (others => '0');
+               VI_SHADOW_FILL_COLOR          <= (others => '0');
             end if;
          end if;
       end if;
@@ -907,6 +935,7 @@ begin
       sync_full               => commandSyncFull,     
       shadow_cmd_done         => shadow_cmd_done,
       shadow_cmd_opcode       => shadow_cmd_opcode,
+      shadow_cmd_data         => shadow_cmd_data,
 
       -- synthesis translate_off
       export_command_done     => export_command_done, 

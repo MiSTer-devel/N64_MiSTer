@@ -44,6 +44,8 @@ entity VI is
       VI_SHADOW_MODE   : in  unsigned(1 downto 0);
       VI_SHADOW_FRAME_STROBE : in std_logic;
       VI_SHADOW_UNSUPPORTED_CMDS : in unsigned(15 downto 0);
+      VI_SHADOW_FILLRECT_COUNT : in unsigned(15 downto 0);
+      VI_SHADOW_FILL_COLOR : in unsigned(23 downto 0);
       
       errorEna         : in  std_logic;
       errorCode        : in  unsigned(31 downto 0);
@@ -531,6 +533,8 @@ begin
       VI_SHADOW_MODE                   => VI_SHADOW_MODE,
       VI_SHADOW_FRAME_STROBE           => VI_SHADOW_FRAME_STROBE,
       VI_SHADOW_UNSUPPORTED_CMDS       => VI_SHADOW_UNSUPPORTED_CMDS,
+      VI_SHADOW_FILLRECT_COUNT         => VI_SHADOW_FILLRECT_COUNT,
+      VI_SHADOW_FILL_COLOR             => VI_SHADOW_FILL_COLOR,
                   
       VI_CTRL_TYPE                     => VIE_CTRL_TYPE,
       VI_CTRL_AA_MODE                  => VIE_CTRL_AA_MODE,

@@ -27,6 +27,7 @@ entity RDP_command is
       sync_full               : out std_logic := '0';  
       shadow_cmd_done         : out std_logic := '0';
       shadow_cmd_opcode       : out unsigned(5 downto 0) := (others => '0');
+      shadow_cmd_data         : out unsigned(63 downto 0) := (others => '0');
       
       -- synthesis translate_off
       export_command_done     : out std_logic := '0'; 
@@ -135,6 +136,7 @@ begin
    CommandData <= unsigned(cmdfifo_Dout);
    shadow_cmd_done   <= '1' when (state = EVALCOMMAND) else '0';
    shadow_cmd_opcode <= CommandData(61 downto 56);
+   shadow_cmd_data   <= CommandData;
 
    -- synthesis translate_off
    export_command_done <=  '1' when (state = EVALCOMMAND) else '0';                 
@@ -685,7 +687,6 @@ begin
    end process;
 
 end architecture;
-
 
 
 
