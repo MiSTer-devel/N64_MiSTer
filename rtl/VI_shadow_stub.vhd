@@ -17,6 +17,26 @@ entity VI_shadow_stub is
       texrect_x1 : in unsigned(9 downto 0);
       texrect_y0 : in unsigned(8 downto 0);
       texrect_y1 : in unsigned(8 downto 0);
+      texrect0_valid : in std_logic;
+      texrect0_x0 : in unsigned(9 downto 0);
+      texrect0_x1 : in unsigned(9 downto 0);
+      texrect0_y0 : in unsigned(8 downto 0);
+      texrect0_y1 : in unsigned(8 downto 0);
+      texrect1_valid : in std_logic;
+      texrect1_x0 : in unsigned(9 downto 0);
+      texrect1_x1 : in unsigned(9 downto 0);
+      texrect1_y0 : in unsigned(8 downto 0);
+      texrect1_y1 : in unsigned(8 downto 0);
+      texrect2_valid : in std_logic;
+      texrect2_x0 : in unsigned(9 downto 0);
+      texrect2_x1 : in unsigned(9 downto 0);
+      texrect2_y0 : in unsigned(8 downto 0);
+      texrect2_y1 : in unsigned(8 downto 0);
+      texrect3_valid : in std_logic;
+      texrect3_x0 : in unsigned(9 downto 0);
+      texrect3_x1 : in unsigned(9 downto 0);
+      texrect3_y0 : in unsigned(8 downto 0);
+      texrect3_y1 : in unsigned(8 downto 0);
       fill_color  : in  unsigned(23 downto 0);
       fillrect_valid : in std_logic;
       fillrect_x0 : in unsigned(9 downto 0);
@@ -145,6 +165,8 @@ begin
       variable sample_y : unsigned(9 downto 0);
       variable sample_hit : boolean;
       variable aggregate_hit : boolean;
+      variable have_fillrect_slots : boolean;
+      variable have_texrect_slots : boolean;
       variable sample_fill_color : unsigned(23 downto 0);
       variable fill_coverage_count : unsigned(2 downto 0);
       variable texrect_coverage_count : unsigned(2 downto 0);
@@ -175,6 +197,8 @@ begin
          copy_sum_r := (others => '0');
          copy_sum_g := (others => '0');
          copy_sum_b := (others => '0');
+         have_fillrect_slots := (fillrect0_valid = '1' or fillrect1_valid = '1' or fillrect2_valid = '1' or fillrect3_valid = '1');
+         have_texrect_slots := (texrect0_valid = '1' or texrect1_valid = '1' or texrect2_valid = '1' or texrect3_valid = '1');
 
          -- Rasterize four 2x subpixels per output pixel. This keeps the current
          -- native timing while making the fill-rectangle subset genuinely
@@ -205,7 +229,7 @@ begin
                   sample_fill_color := fillrect0_color;
                end if;
 
-               if (sample_hit = false) then
+               if (sample_hit = false and have_fillrect_slots = false) then
                   aggregate_hit := inside_fillrect_2x(sample_x, sample_y, fillrect_valid, fillrect_x0, fillrect_x1, fillrect_y0, fillrect_y1);
                   if (fillrect_count /= 0 and aggregate_hit) then
                      sample_hit := true;
@@ -220,8 +244,13 @@ begin
                   fill_sum_b := fill_sum_b + resize(sample_fill_color(7 downto 0), 10);
                elsif (
                   shadow_mode = "10" and
-                  texrect_count /= 0 and
-                  inside_fillrect_2x(sample_x, sample_y, texrect_valid, texrect_x0, texrect_x1, texrect_y0, texrect_y1)
+                  (
+                     inside_fillrect_2x(sample_x, sample_y, texrect3_valid, texrect3_x0, texrect3_x1, texrect3_y0, texrect3_y1) or
+                     inside_fillrect_2x(sample_x, sample_y, texrect2_valid, texrect2_x0, texrect2_x1, texrect2_y0, texrect2_y1) or
+                     inside_fillrect_2x(sample_x, sample_y, texrect1_valid, texrect1_x0, texrect1_x1, texrect1_y0, texrect1_y1) or
+                     inside_fillrect_2x(sample_x, sample_y, texrect0_valid, texrect0_x0, texrect0_x1, texrect0_y0, texrect0_y1) or
+                     (have_texrect_slots = false and texrect_count /= 0 and inside_fillrect_2x(sample_x, sample_y, texrect_valid, texrect_x0, texrect_x1, texrect_y0, texrect_y1))
+                  )
                ) then
                   texrect_coverage_count := texrect_coverage_count + 1;
                   copy_sum_r := copy_sum_r + enhance_copy_component(pixel_in_r);

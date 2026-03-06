@@ -51,6 +51,26 @@ entity VI is
       VI_SHADOW_TEXRECT_X1 : in unsigned(9 downto 0);
       VI_SHADOW_TEXRECT_Y0 : in unsigned(8 downto 0);
       VI_SHADOW_TEXRECT_Y1 : in unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT0_VALID : in std_logic;
+      VI_SHADOW_TEXRECT0_X0 : in unsigned(9 downto 0);
+      VI_SHADOW_TEXRECT0_X1 : in unsigned(9 downto 0);
+      VI_SHADOW_TEXRECT0_Y0 : in unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT0_Y1 : in unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT1_VALID : in std_logic;
+      VI_SHADOW_TEXRECT1_X0 : in unsigned(9 downto 0);
+      VI_SHADOW_TEXRECT1_X1 : in unsigned(9 downto 0);
+      VI_SHADOW_TEXRECT1_Y0 : in unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT1_Y1 : in unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT2_VALID : in std_logic;
+      VI_SHADOW_TEXRECT2_X0 : in unsigned(9 downto 0);
+      VI_SHADOW_TEXRECT2_X1 : in unsigned(9 downto 0);
+      VI_SHADOW_TEXRECT2_Y0 : in unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT2_Y1 : in unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT3_VALID : in std_logic;
+      VI_SHADOW_TEXRECT3_X0 : in unsigned(9 downto 0);
+      VI_SHADOW_TEXRECT3_X1 : in unsigned(9 downto 0);
+      VI_SHADOW_TEXRECT3_Y0 : in unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT3_Y1 : in unsigned(8 downto 0);
       VI_SHADOW_FILL_COLOR : in unsigned(23 downto 0);
       VI_SHADOW_FILLRECT_VALID : in std_logic;
       VI_SHADOW_FILLRECT_X0 : in unsigned(9 downto 0);
@@ -576,6 +596,26 @@ begin
       VI_SHADOW_TEXRECT_X1             => VI_SHADOW_TEXRECT_X1,
       VI_SHADOW_TEXRECT_Y0             => VI_SHADOW_TEXRECT_Y0,
       VI_SHADOW_TEXRECT_Y1             => VI_SHADOW_TEXRECT_Y1,
+      VI_SHADOW_TEXRECT0_VALID         => VI_SHADOW_TEXRECT0_VALID,
+      VI_SHADOW_TEXRECT0_X0            => VI_SHADOW_TEXRECT0_X0,
+      VI_SHADOW_TEXRECT0_X1            => VI_SHADOW_TEXRECT0_X1,
+      VI_SHADOW_TEXRECT0_Y0            => VI_SHADOW_TEXRECT0_Y0,
+      VI_SHADOW_TEXRECT0_Y1            => VI_SHADOW_TEXRECT0_Y1,
+      VI_SHADOW_TEXRECT1_VALID         => VI_SHADOW_TEXRECT1_VALID,
+      VI_SHADOW_TEXRECT1_X0            => VI_SHADOW_TEXRECT1_X0,
+      VI_SHADOW_TEXRECT1_X1            => VI_SHADOW_TEXRECT1_X1,
+      VI_SHADOW_TEXRECT1_Y0            => VI_SHADOW_TEXRECT1_Y0,
+      VI_SHADOW_TEXRECT1_Y1            => VI_SHADOW_TEXRECT1_Y1,
+      VI_SHADOW_TEXRECT2_VALID         => VI_SHADOW_TEXRECT2_VALID,
+      VI_SHADOW_TEXRECT2_X0            => VI_SHADOW_TEXRECT2_X0,
+      VI_SHADOW_TEXRECT2_X1            => VI_SHADOW_TEXRECT2_X1,
+      VI_SHADOW_TEXRECT2_Y0            => VI_SHADOW_TEXRECT2_Y0,
+      VI_SHADOW_TEXRECT2_Y1            => VI_SHADOW_TEXRECT2_Y1,
+      VI_SHADOW_TEXRECT3_VALID         => VI_SHADOW_TEXRECT3_VALID,
+      VI_SHADOW_TEXRECT3_X0            => VI_SHADOW_TEXRECT3_X0,
+      VI_SHADOW_TEXRECT3_X1            => VI_SHADOW_TEXRECT3_X1,
+      VI_SHADOW_TEXRECT3_Y0            => VI_SHADOW_TEXRECT3_Y0,
+      VI_SHADOW_TEXRECT3_Y1            => VI_SHADOW_TEXRECT3_Y1,
       VI_SHADOW_FILL_COLOR             => VI_SHADOW_FILL_COLOR,
       VI_SHADOW_FILLRECT_VALID         => VI_SHADOW_FILLRECT_VALID,
       VI_SHADOW_FILLRECT_X0            => VI_SHADOW_FILLRECT_X0,

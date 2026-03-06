@@ -491,6 +491,26 @@ architecture arch of n64top is
    signal VI_shadow_texrect_x1       : unsigned(9 downto 0) := (others => '0');
    signal VI_shadow_texrect_y0       : unsigned(8 downto 0) := (others => '0');
    signal VI_shadow_texrect_y1       : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_texrect0_valid   : std_logic := '0';
+   signal VI_shadow_texrect0_x0      : unsigned(9 downto 0) := (others => '0');
+   signal VI_shadow_texrect0_x1      : unsigned(9 downto 0) := (others => '0');
+   signal VI_shadow_texrect0_y0      : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_texrect0_y1      : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_texrect1_valid   : std_logic := '0';
+   signal VI_shadow_texrect1_x0      : unsigned(9 downto 0) := (others => '0');
+   signal VI_shadow_texrect1_x1      : unsigned(9 downto 0) := (others => '0');
+   signal VI_shadow_texrect1_y0      : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_texrect1_y1      : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_texrect2_valid   : std_logic := '0';
+   signal VI_shadow_texrect2_x0      : unsigned(9 downto 0) := (others => '0');
+   signal VI_shadow_texrect2_x1      : unsigned(9 downto 0) := (others => '0');
+   signal VI_shadow_texrect2_y0      : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_texrect2_y1      : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_texrect3_valid   : std_logic := '0';
+   signal VI_shadow_texrect3_x0      : unsigned(9 downto 0) := (others => '0');
+   signal VI_shadow_texrect3_x1      : unsigned(9 downto 0) := (others => '0');
+   signal VI_shadow_texrect3_y0      : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_texrect3_y1      : unsigned(8 downto 0) := (others => '0');
    signal VI_shadow_fill_color       : unsigned(23 downto 0) := (others => '0');
    signal VI_shadow_fillrect_valid   : std_logic := '0';
    signal VI_shadow_fillrect_x0      : unsigned(9 downto 0) := (others => '0');
@@ -770,6 +790,26 @@ begin
       VI_SHADOW_TEXRECT_X1        => VI_shadow_texrect_x1,
       VI_SHADOW_TEXRECT_Y0        => VI_shadow_texrect_y0,
       VI_SHADOW_TEXRECT_Y1        => VI_shadow_texrect_y1,
+      VI_SHADOW_TEXRECT0_VALID    => VI_shadow_texrect0_valid,
+      VI_SHADOW_TEXRECT0_X0       => VI_shadow_texrect0_x0,
+      VI_SHADOW_TEXRECT0_X1       => VI_shadow_texrect0_x1,
+      VI_SHADOW_TEXRECT0_Y0       => VI_shadow_texrect0_y0,
+      VI_SHADOW_TEXRECT0_Y1       => VI_shadow_texrect0_y1,
+      VI_SHADOW_TEXRECT1_VALID    => VI_shadow_texrect1_valid,
+      VI_SHADOW_TEXRECT1_X0       => VI_shadow_texrect1_x0,
+      VI_SHADOW_TEXRECT1_X1       => VI_shadow_texrect1_x1,
+      VI_SHADOW_TEXRECT1_Y0       => VI_shadow_texrect1_y0,
+      VI_SHADOW_TEXRECT1_Y1       => VI_shadow_texrect1_y1,
+      VI_SHADOW_TEXRECT2_VALID    => VI_shadow_texrect2_valid,
+      VI_SHADOW_TEXRECT2_X0       => VI_shadow_texrect2_x0,
+      VI_SHADOW_TEXRECT2_X1       => VI_shadow_texrect2_x1,
+      VI_SHADOW_TEXRECT2_Y0       => VI_shadow_texrect2_y0,
+      VI_SHADOW_TEXRECT2_Y1       => VI_shadow_texrect2_y1,
+      VI_SHADOW_TEXRECT3_VALID    => VI_shadow_texrect3_valid,
+      VI_SHADOW_TEXRECT3_X0       => VI_shadow_texrect3_x0,
+      VI_SHADOW_TEXRECT3_X1       => VI_shadow_texrect3_x1,
+      VI_SHADOW_TEXRECT3_Y0       => VI_shadow_texrect3_y0,
+      VI_SHADOW_TEXRECT3_Y1       => VI_shadow_texrect3_y1,
       VI_SHADOW_FILL_COLOR        => VI_shadow_fill_color,
       VI_SHADOW_FILLRECT_VALID    => VI_shadow_fillrect_valid,
       VI_SHADOW_FILLRECT_X0       => VI_shadow_fillrect_x0,
@@ -963,6 +1003,26 @@ begin
       VI_SHADOW_TEXRECT_X1 => VI_shadow_texrect_x1,
       VI_SHADOW_TEXRECT_Y0 => VI_shadow_texrect_y0,
       VI_SHADOW_TEXRECT_Y1 => VI_shadow_texrect_y1,
+      VI_SHADOW_TEXRECT0_VALID => VI_shadow_texrect0_valid,
+      VI_SHADOW_TEXRECT0_X0 => VI_shadow_texrect0_x0,
+      VI_SHADOW_TEXRECT0_X1 => VI_shadow_texrect0_x1,
+      VI_SHADOW_TEXRECT0_Y0 => VI_shadow_texrect0_y0,
+      VI_SHADOW_TEXRECT0_Y1 => VI_shadow_texrect0_y1,
+      VI_SHADOW_TEXRECT1_VALID => VI_shadow_texrect1_valid,
+      VI_SHADOW_TEXRECT1_X0 => VI_shadow_texrect1_x0,
+      VI_SHADOW_TEXRECT1_X1 => VI_shadow_texrect1_x1,
+      VI_SHADOW_TEXRECT1_Y0 => VI_shadow_texrect1_y0,
+      VI_SHADOW_TEXRECT1_Y1 => VI_shadow_texrect1_y1,
+      VI_SHADOW_TEXRECT2_VALID => VI_shadow_texrect2_valid,
+      VI_SHADOW_TEXRECT2_X0 => VI_shadow_texrect2_x0,
+      VI_SHADOW_TEXRECT2_X1 => VI_shadow_texrect2_x1,
+      VI_SHADOW_TEXRECT2_Y0 => VI_shadow_texrect2_y0,
+      VI_SHADOW_TEXRECT2_Y1 => VI_shadow_texrect2_y1,
+      VI_SHADOW_TEXRECT3_VALID => VI_shadow_texrect3_valid,
+      VI_SHADOW_TEXRECT3_X0 => VI_shadow_texrect3_x0,
+      VI_SHADOW_TEXRECT3_X1 => VI_shadow_texrect3_x1,
+      VI_SHADOW_TEXRECT3_Y0 => VI_shadow_texrect3_y0,
+      VI_SHADOW_TEXRECT3_Y1 => VI_shadow_texrect3_y1,
       VI_SHADOW_FILL_COLOR => VI_shadow_fill_color,
       VI_SHADOW_FILLRECT_VALID => VI_shadow_fillrect_valid,
       VI_SHADOW_FILLRECT_X0 => VI_shadow_fillrect_x0,
