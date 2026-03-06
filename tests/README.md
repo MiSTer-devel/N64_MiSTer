@@ -68,3 +68,7 @@ Optional outputs:
   - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt --json-out /tmp/rdp_summary.json`
 - Dump one frame's command words:
   - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt --dump-frame 42`
+- Analyze PoC subset coverage:
+  - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt --subset fill_only`
+- Fail CI when subset is exceeded:
+  - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt --subset fill_only --strict-subset`
