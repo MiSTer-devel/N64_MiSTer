@@ -6,6 +6,7 @@ entity VI_shadow_stub is
    port
    (
       enable      : in  std_logic;
+      shadow_mode : in  unsigned(1 downto 0);
       pixel_in_r  : in  std_logic_vector(7 downto 0);
       pixel_in_g  : in  std_logic_vector(7 downto 0);
       pixel_in_b  : in  std_logic_vector(7 downto 0);
@@ -53,7 +54,7 @@ begin
                pixel_out_g <= std_logic_vector(mix_g(8 downto 1));
                pixel_out_b <= std_logic_vector(mix_b(8 downto 1));
             end if;
-         else
+         elsif (shadow_mode = "01") then
             pixel_out_g <= '0' & pixel_in_g(7 downto 1);
             pixel_out_b <= pixel_in_b(7 downto 1) & checker;
          end if;

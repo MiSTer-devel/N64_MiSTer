@@ -128,6 +128,9 @@ Changes:
 - Initial scaffolding implemented:
   - native/shadow display mux in `VI_videoout`
   - `VI_shadow_stub` module for shadow RGB generation (currently tint/checker)
+  - stub fallback behavior is mode-aware:
+    - `fill_only`: checker fallback when no fill metadata is present
+    - `fill_copy`: pass-through fallback when no fill metadata is present
   - RDP per-frame fill metadata (`fillrect_count`, `fill_color`) piped into shadow path
   - RDP per-frame fill bounds (`x0/x1/y0/y1`, valid bit) piped into shadow path
   - fill bounds converted from RDP 10.2 fixed-point into VI pixel coordinates before masking

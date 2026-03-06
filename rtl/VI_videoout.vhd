@@ -318,6 +318,7 @@ begin
    port map
    (
       enable      => shadow_output_enable,
+      shadow_mode => VI_SHADOW_MODE,
       pixel_in_r  => videoout_out.r,
       pixel_in_g  => videoout_out.g,
       pixel_in_b  => videoout_out.b,
