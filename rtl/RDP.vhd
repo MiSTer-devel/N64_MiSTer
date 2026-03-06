@@ -204,6 +204,11 @@ architecture arch of RDP is
    signal shadow_frame_fillrect_x1_work    : unsigned(9 downto 0) := (others => '0');
    signal shadow_frame_fillrect_y0_work    : unsigned(8 downto 0) := (others => '0');
    signal shadow_frame_fillrect_y1_work    : unsigned(8 downto 0) := (others => '0');
+   signal shadow_scissor_valid_work        : std_logic := '0';
+   signal shadow_scissor_x0_work           : unsigned(9 downto 0) := (others => '0');
+   signal shadow_scissor_x1_work           : unsigned(9 downto 0) := (others => '1');
+   signal shadow_scissor_y0_work           : unsigned(8 downto 0) := (others => '0');
+   signal shadow_scissor_y1_work           : unsigned(8 downto 0) := (others => '1');
    
    -- Texture request ram
    signal TextureReqRAMreq          : std_logic;
@@ -818,6 +823,11 @@ begin
       variable shadow_fillrect_x1_next    : unsigned(9 downto 0);
       variable shadow_fillrect_y0_next    : unsigned(8 downto 0);
       variable shadow_fillrect_y1_next    : unsigned(8 downto 0);
+      variable shadow_scissor_valid_next  : std_logic;
+      variable shadow_scissor_x0_next     : unsigned(9 downto 0);
+      variable shadow_scissor_x1_next     : unsigned(9 downto 0);
+      variable shadow_scissor_y0_next     : unsigned(8 downto 0);
+      variable shadow_scissor_y1_next     : unsigned(8 downto 0);
       variable fill_xh : unsigned(11 downto 0);
       variable fill_xl : unsigned(11 downto 0);
       variable fill_yh : unsigned(11 downto 0);
@@ -830,6 +840,22 @@ begin
       variable fill_x_max_px : unsigned(9 downto 0);
       variable fill_y_min_px : unsigned(8 downto 0);
       variable fill_y_max_px : unsigned(8 downto 0);
+      variable fill_y_min_px_raw : unsigned(9 downto 0);
+      variable fill_y_max_px_raw : unsigned(9 downto 0);
+      variable scissor_xh : unsigned(11 downto 0);
+      variable scissor_xl : unsigned(11 downto 0);
+      variable scissor_yh : unsigned(11 downto 0);
+      variable scissor_yl : unsigned(11 downto 0);
+      variable scissor_x_min : unsigned(11 downto 0);
+      variable scissor_x_max : unsigned(11 downto 0);
+      variable scissor_y_min : unsigned(11 downto 0);
+      variable scissor_y_max : unsigned(11 downto 0);
+      variable scissor_x_min_px : unsigned(9 downto 0);
+      variable scissor_x_max_px : unsigned(9 downto 0);
+      variable scissor_y_min_px_raw : unsigned(9 downto 0);
+      variable scissor_y_max_px_raw : unsigned(9 downto 0);
+      variable scissor_y_min_px : unsigned(8 downto 0);
+      variable scissor_y_max_px : unsigned(8 downto 0);
    begin
       if rising_edge(clk1x) then
          VI_SHADOW_FRAME_STROBE <= '0';
@@ -843,6 +869,11 @@ begin
             shadow_frame_fillrect_x1_work    <= (others => '0');
             shadow_frame_fillrect_y0_work    <= (others => '0');
             shadow_frame_fillrect_y1_work    <= (others => '0');
+            shadow_scissor_valid_work        <= '0';
+            shadow_scissor_x0_work           <= (others => '0');
+            shadow_scissor_x1_work           <= (others => '1');
+            shadow_scissor_y0_work           <= (others => '0');
+            shadow_scissor_y1_work           <= (others => '1');
             VI_SHADOW_UNSUPPORTED_CMDS    <= (others => '0');
             VI_SHADOW_FILLRECT_COUNT      <= (others => '0');
             VI_SHADOW_FILL_COLOR          <= (others => '0');
@@ -860,9 +891,54 @@ begin
                shadow_fillrect_x1_next := shadow_frame_fillrect_x1_work;
                shadow_fillrect_y0_next := shadow_frame_fillrect_y0_work;
                shadow_fillrect_y1_next := shadow_frame_fillrect_y1_work;
+               shadow_scissor_valid_next := shadow_scissor_valid_work;
+               shadow_scissor_x0_next := shadow_scissor_x0_work;
+               shadow_scissor_x1_next := shadow_scissor_x1_work;
+               shadow_scissor_y0_next := shadow_scissor_y0_work;
+               shadow_scissor_y1_next := shadow_scissor_y1_work;
 
                if (shadow_cmd_done = '1' and shadow_cmd_opcode = 6x"37") then
                   shadow_fill_color_work <= shadow_cmd_data(23 downto 0);
+               end if;
+               if (shadow_cmd_done = '1' and shadow_cmd_opcode = 6x"2D") then
+                  scissor_xh := shadow_cmd_data(55 downto 44);
+                  scissor_xl := shadow_cmd_data(23 downto 12);
+                  scissor_yh := shadow_cmd_data(11 downto 0);
+                  scissor_yl := shadow_cmd_data(43 downto 32);
+                  if (scissor_xh <= scissor_xl) then
+                     scissor_x_min := scissor_xh;
+                     scissor_x_max := scissor_xl;
+                  else
+                     scissor_x_min := scissor_xl;
+                     scissor_x_max := scissor_xh;
+                  end if;
+                  if (scissor_yh <= scissor_yl) then
+                     scissor_y_min := scissor_yh;
+                     scissor_y_max := scissor_yl;
+                  else
+                     scissor_y_min := scissor_yl;
+                     scissor_y_max := scissor_yh;
+                  end if;
+                  -- Scissor command uses 10.2 fixed-point.
+                  scissor_x_min_px := scissor_x_min(11 downto 2);
+                  scissor_x_max_px := scissor_x_max(11 downto 2);
+                  scissor_y_min_px_raw := scissor_y_min(11 downto 2);
+                  scissor_y_max_px_raw := scissor_y_max(11 downto 2);
+                  if (scissor_y_min_px_raw > to_unsigned(511, 10)) then
+                     scissor_y_min_px := to_unsigned(511, 9);
+                  else
+                     scissor_y_min_px := scissor_y_min_px_raw(8 downto 0);
+                  end if;
+                  if (scissor_y_max_px_raw > to_unsigned(511, 10)) then
+                     scissor_y_max_px := to_unsigned(511, 9);
+                  else
+                     scissor_y_max_px := scissor_y_max_px_raw(8 downto 0);
+                  end if;
+                  shadow_scissor_valid_next := '1';
+                  shadow_scissor_x0_next := scissor_x_min_px;
+                  shadow_scissor_x1_next := scissor_x_max_px;
+                  shadow_scissor_y0_next := scissor_y_min_px;
+                  shadow_scissor_y1_next := scissor_y_max_px;
                end if;
                if (shadow_cmd_done = '1' and shadow_cmd_opcode = 6x"36") then
                   fill_xh := shadow_cmd_data(55 downto 44);
@@ -887,19 +963,37 @@ begin
                   -- Convert to integer pixel domain before handing off to VI shadow masking.
                   fill_x_min_px := fill_x_min(11 downto 2);
                   fill_x_max_px := fill_x_max(11 downto 2);
-                  fill_y_min_px := fill_y_min(11 downto 2);
-                  fill_y_max_px := fill_y_max(11 downto 2);
-                  if (shadow_fillrect_valid_next = '0') then
-                     shadow_fillrect_valid_next := '1';
-                     shadow_fillrect_x0_next := fill_x_min_px;
-                     shadow_fillrect_x1_next := fill_x_max_px;
-                     shadow_fillrect_y0_next := fill_y_min_px;
-                     shadow_fillrect_y1_next := fill_y_max_px;
+                  fill_y_min_px_raw := fill_y_min(11 downto 2);
+                  fill_y_max_px_raw := fill_y_max(11 downto 2);
+                  if (fill_y_min_px_raw > to_unsigned(511, 10)) then
+                     fill_y_min_px := to_unsigned(511, 9);
                   else
-                     if (fill_x_min_px < shadow_fillrect_x0_next) then shadow_fillrect_x0_next := fill_x_min_px; end if;
-                     if (fill_x_max_px > shadow_fillrect_x1_next) then shadow_fillrect_x1_next := fill_x_max_px; end if;
-                     if (fill_y_min_px < shadow_fillrect_y0_next) then shadow_fillrect_y0_next := fill_y_min_px; end if;
-                     if (fill_y_max_px > shadow_fillrect_y1_next) then shadow_fillrect_y1_next := fill_y_max_px; end if;
+                     fill_y_min_px := fill_y_min_px_raw(8 downto 0);
+                  end if;
+                  if (fill_y_max_px_raw > to_unsigned(511, 10)) then
+                     fill_y_max_px := to_unsigned(511, 9);
+                  else
+                     fill_y_max_px := fill_y_max_px_raw(8 downto 0);
+                  end if;
+                  if (shadow_scissor_valid_next = '1') then
+                     if (fill_x_min_px < shadow_scissor_x0_next) then fill_x_min_px := shadow_scissor_x0_next; end if;
+                     if (fill_x_max_px > shadow_scissor_x1_next) then fill_x_max_px := shadow_scissor_x1_next; end if;
+                     if (fill_y_min_px < shadow_scissor_y0_next) then fill_y_min_px := shadow_scissor_y0_next; end if;
+                     if (fill_y_max_px > shadow_scissor_y1_next) then fill_y_max_px := shadow_scissor_y1_next; end if;
+                  end if;
+                  if (fill_x_min_px <= fill_x_max_px and fill_y_min_px <= fill_y_max_px) then
+                     if (shadow_fillrect_valid_next = '0') then
+                        shadow_fillrect_valid_next := '1';
+                        shadow_fillrect_x0_next := fill_x_min_px;
+                        shadow_fillrect_x1_next := fill_x_max_px;
+                        shadow_fillrect_y0_next := fill_y_min_px;
+                        shadow_fillrect_y1_next := fill_y_max_px;
+                     else
+                        if (fill_x_min_px < shadow_fillrect_x0_next) then shadow_fillrect_x0_next := fill_x_min_px; end if;
+                        if (fill_x_max_px > shadow_fillrect_x1_next) then shadow_fillrect_x1_next := fill_x_max_px; end if;
+                        if (fill_y_min_px < shadow_fillrect_y0_next) then shadow_fillrect_y0_next := fill_y_min_px; end if;
+                        if (fill_y_max_px > shadow_fillrect_y1_next) then shadow_fillrect_y1_next := fill_y_max_px; end if;
+                     end if;
                   end if;
                   if (shadow_fillrect_next /= x"FFFF") then
                      shadow_fillrect_next := shadow_fillrect_next + 1;
@@ -929,6 +1023,11 @@ begin
                   shadow_frame_fillrect_x1_work    <= (others => '0');
                   shadow_frame_fillrect_y0_work    <= (others => '0');
                   shadow_frame_fillrect_y1_work    <= (others => '0');
+                  shadow_scissor_valid_work <= shadow_scissor_valid_next;
+                  shadow_scissor_x0_work    <= shadow_scissor_x0_next;
+                  shadow_scissor_x1_work    <= shadow_scissor_x1_next;
+                  shadow_scissor_y0_work    <= shadow_scissor_y0_next;
+                  shadow_scissor_y1_work    <= shadow_scissor_y1_next;
                else
                   shadow_frame_unsupported_work <= shadow_next;
                   shadow_frame_fillrect_work    <= shadow_fillrect_next;
@@ -937,6 +1036,11 @@ begin
                   shadow_frame_fillrect_x1_work    <= shadow_fillrect_x1_next;
                   shadow_frame_fillrect_y0_work    <= shadow_fillrect_y0_next;
                   shadow_frame_fillrect_y1_work    <= shadow_fillrect_y1_next;
+                  shadow_scissor_valid_work <= shadow_scissor_valid_next;
+                  shadow_scissor_x0_work    <= shadow_scissor_x0_next;
+                  shadow_scissor_x1_work    <= shadow_scissor_x1_next;
+                  shadow_scissor_y0_work    <= shadow_scissor_y0_next;
+                  shadow_scissor_y1_work    <= shadow_scissor_y1_next;
                end if;
             else
                shadow_frame_unsupported_work <= (others => '0');
@@ -947,6 +1051,11 @@ begin
                shadow_frame_fillrect_x1_work    <= (others => '0');
                shadow_frame_fillrect_y0_work    <= (others => '0');
                shadow_frame_fillrect_y1_work    <= (others => '0');
+               shadow_scissor_valid_work        <= '0';
+               shadow_scissor_x0_work           <= (others => '0');
+               shadow_scissor_x1_work           <= (others => '1');
+               shadow_scissor_y0_work           <= (others => '0');
+               shadow_scissor_y1_work           <= (others => '1');
                VI_SHADOW_UNSUPPORTED_CMDS    <= (others => '0');
                VI_SHADOW_FILLRECT_COUNT      <= (others => '0');
                VI_SHADOW_FILL_COLOR          <= (others => '0');
