@@ -123,7 +123,7 @@ Changes:
 - Keep unsupported commands on native output path.
 - Initial scaffolding implemented:
   - native/shadow display mux in `VI_videoout`
-  - shadow stub RGB path (tint/checker) for activation verification
+  - `VI_shadow_stub` module for shadow RGB generation (currently tint/checker)
   - timing remains sourced from native VI output path
 
 Acceptance:

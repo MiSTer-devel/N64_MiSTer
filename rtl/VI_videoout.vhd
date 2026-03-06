@@ -249,7 +249,6 @@ architecture arch of VI_videoout is
    signal shadow_runtime_enable   : std_logic;
    signal shadow_guard_unsupported: std_logic;
    signal shadow_output_enable    : std_logic;
-   signal shadow_stub_checker     : std_logic;
    signal shadow_stub_r           : std_logic_vector(7 downto 0);
    signal shadow_stub_g           : std_logic_vector(7 downto 0);
    signal shadow_stub_b           : std_logic_vector(7 downto 0);
@@ -292,10 +291,6 @@ begin
    shadow_runtime_enable <= '1' when (VI_SHADOW_ENABLE = '1' and (VI_SHADOW_MODE = "01" or VI_SHADOW_MODE = "10") and shadow_fallback_reason = x"0") else '0';
    shadow_output_enable <= shadow_runtime_enable and gotFirstFrame;
    shadow_guard_unsupported <= '1' when (VI_CTRL_TYPE = "00" or VI_WIDTH = 0) else '0';
-   shadow_stub_checker <= overlay_xpos(0) xor overlay_ypos(0);
-   shadow_stub_r <= videoout_out.r;
-   shadow_stub_g <= '0' & videoout_out.g(7 downto 1);
-   shadow_stub_b <= videoout_out.b(7 downto 1) & shadow_stub_checker;
 
    process (all)
    begin
@@ -307,6 +302,20 @@ begin
          videoout_mux_out.b <= shadow_stub_b;
       end if;
    end process;
+
+   iVI_shadow_stub : entity work.VI_shadow_stub
+   port map
+   (
+      enable      => shadow_output_enable,
+      pixel_in_r  => videoout_out.r,
+      pixel_in_g  => videoout_out.g,
+      pixel_in_b  => videoout_out.b,
+      xpos        => overlay_xpos,
+      ypos        => overlay_ypos,
+      pixel_out_r => shadow_stub_r,
+      pixel_out_g => shadow_stub_g,
+      pixel_out_b => shadow_stub_b
+   );
    
    process (clk1x)
       variable shadow_div_next : unsigned(15 downto 0);

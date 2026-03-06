@@ -1,0 +1,37 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity VI_shadow_stub is
+   port
+   (
+      enable      : in  std_logic;
+      pixel_in_r  : in  std_logic_vector(7 downto 0);
+      pixel_in_g  : in  std_logic_vector(7 downto 0);
+      pixel_in_b  : in  std_logic_vector(7 downto 0);
+      xpos        : in  unsigned(9 downto 0);
+      ypos        : in  unsigned(8 downto 0);
+      pixel_out_r : out std_logic_vector(7 downto 0);
+      pixel_out_g : out std_logic_vector(7 downto 0);
+      pixel_out_b : out std_logic_vector(7 downto 0)
+   );
+end entity;
+
+architecture arch of VI_shadow_stub is
+   signal checker : std_logic;
+begin
+   checker <= xpos(0) xor ypos(0);
+
+   process (all)
+   begin
+      pixel_out_r <= pixel_in_r;
+      pixel_out_g <= pixel_in_g;
+      pixel_out_b <= pixel_in_b;
+
+      if (enable = '1') then
+         pixel_out_g <= '0' & pixel_in_g(7 downto 1);
+         pixel_out_b <= pixel_in_b(7 downto 1) & checker;
+      end if;
+   end process;
+
+end architecture;
