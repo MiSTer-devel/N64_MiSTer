@@ -62,21 +62,29 @@ entity VI_videoout is
       VI_SHADOW_TEXRECT0_X1            : in  unsigned(9 downto 0);
       VI_SHADOW_TEXRECT0_Y0            : in  unsigned(8 downto 0);
       VI_SHADOW_TEXRECT0_Y1            : in  unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT0_TILE          : in  unsigned(2 downto 0);
+      VI_SHADOW_TEXRECT0_FLIP          : in  std_logic;
       VI_SHADOW_TEXRECT1_VALID         : in  std_logic;
       VI_SHADOW_TEXRECT1_X0            : in  unsigned(9 downto 0);
       VI_SHADOW_TEXRECT1_X1            : in  unsigned(9 downto 0);
       VI_SHADOW_TEXRECT1_Y0            : in  unsigned(8 downto 0);
       VI_SHADOW_TEXRECT1_Y1            : in  unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT1_TILE          : in  unsigned(2 downto 0);
+      VI_SHADOW_TEXRECT1_FLIP          : in  std_logic;
       VI_SHADOW_TEXRECT2_VALID         : in  std_logic;
       VI_SHADOW_TEXRECT2_X0            : in  unsigned(9 downto 0);
       VI_SHADOW_TEXRECT2_X1            : in  unsigned(9 downto 0);
       VI_SHADOW_TEXRECT2_Y0            : in  unsigned(8 downto 0);
       VI_SHADOW_TEXRECT2_Y1            : in  unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT2_TILE          : in  unsigned(2 downto 0);
+      VI_SHADOW_TEXRECT2_FLIP          : in  std_logic;
       VI_SHADOW_TEXRECT3_VALID         : in  std_logic;
       VI_SHADOW_TEXRECT3_X0            : in  unsigned(9 downto 0);
       VI_SHADOW_TEXRECT3_X1            : in  unsigned(9 downto 0);
       VI_SHADOW_TEXRECT3_Y0            : in  unsigned(8 downto 0);
       VI_SHADOW_TEXRECT3_Y1            : in  unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT3_TILE          : in  unsigned(2 downto 0);
+      VI_SHADOW_TEXRECT3_FLIP          : in  std_logic;
       VI_SHADOW_TEXRECT_DROPPED        : in  unsigned(15 downto 0);
       VI_SHADOW_FILL_COLOR             : in  unsigned(23 downto 0);
       VI_SHADOW_FILLRECT_VALID         : in  std_logic;
@@ -392,21 +400,29 @@ begin
       texrect0_x1 => VI_SHADOW_TEXRECT0_X1,
       texrect0_y0 => VI_SHADOW_TEXRECT0_Y0,
       texrect0_y1 => VI_SHADOW_TEXRECT0_Y1,
+      texrect0_tile => VI_SHADOW_TEXRECT0_TILE,
+      texrect0_flip => VI_SHADOW_TEXRECT0_FLIP,
       texrect1_valid => VI_SHADOW_TEXRECT1_VALID,
       texrect1_x0 => VI_SHADOW_TEXRECT1_X0,
       texrect1_x1 => VI_SHADOW_TEXRECT1_X1,
       texrect1_y0 => VI_SHADOW_TEXRECT1_Y0,
       texrect1_y1 => VI_SHADOW_TEXRECT1_Y1,
+      texrect1_tile => VI_SHADOW_TEXRECT1_TILE,
+      texrect1_flip => VI_SHADOW_TEXRECT1_FLIP,
       texrect2_valid => VI_SHADOW_TEXRECT2_VALID,
       texrect2_x0 => VI_SHADOW_TEXRECT2_X0,
       texrect2_x1 => VI_SHADOW_TEXRECT2_X1,
       texrect2_y0 => VI_SHADOW_TEXRECT2_Y0,
       texrect2_y1 => VI_SHADOW_TEXRECT2_Y1,
+      texrect2_tile => VI_SHADOW_TEXRECT2_TILE,
+      texrect2_flip => VI_SHADOW_TEXRECT2_FLIP,
       texrect3_valid => VI_SHADOW_TEXRECT3_VALID,
       texrect3_x0 => VI_SHADOW_TEXRECT3_X0,
       texrect3_x1 => VI_SHADOW_TEXRECT3_X1,
       texrect3_y0 => VI_SHADOW_TEXRECT3_Y0,
       texrect3_y1 => VI_SHADOW_TEXRECT3_Y1,
+      texrect3_tile => VI_SHADOW_TEXRECT3_TILE,
+      texrect3_flip => VI_SHADOW_TEXRECT3_FLIP,
       fill_color  => VI_SHADOW_FILL_COLOR,
       fillrect_valid => VI_SHADOW_FILLRECT_VALID,
       fillrect_x0 => VI_SHADOW_FILLRECT_X0,
