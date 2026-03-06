@@ -71,6 +71,7 @@ entity VI is
       VI_SHADOW_TEXRECT3_X1 : in unsigned(9 downto 0);
       VI_SHADOW_TEXRECT3_Y0 : in unsigned(8 downto 0);
       VI_SHADOW_TEXRECT3_Y1 : in unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT_DROPPED : in unsigned(15 downto 0);
       VI_SHADOW_FILL_COLOR : in unsigned(23 downto 0);
       VI_SHADOW_FILLRECT_VALID : in std_logic;
       VI_SHADOW_FILLRECT_X0 : in unsigned(9 downto 0);
@@ -616,6 +617,7 @@ begin
       VI_SHADOW_TEXRECT3_X1            => VI_SHADOW_TEXRECT3_X1,
       VI_SHADOW_TEXRECT3_Y0            => VI_SHADOW_TEXRECT3_Y0,
       VI_SHADOW_TEXRECT3_Y1            => VI_SHADOW_TEXRECT3_Y1,
+      VI_SHADOW_TEXRECT_DROPPED        => VI_SHADOW_TEXRECT_DROPPED,
       VI_SHADOW_FILL_COLOR             => VI_SHADOW_FILL_COLOR,
       VI_SHADOW_FILLRECT_VALID         => VI_SHADOW_FILLRECT_VALID,
       VI_SHADOW_FILLRECT_X0            => VI_SHADOW_FILLRECT_X0,

@@ -511,6 +511,7 @@ architecture arch of n64top is
    signal VI_shadow_texrect3_x1      : unsigned(9 downto 0) := (others => '0');
    signal VI_shadow_texrect3_y0      : unsigned(8 downto 0) := (others => '0');
    signal VI_shadow_texrect3_y1      : unsigned(8 downto 0) := (others => '0');
+   signal VI_shadow_texrect_dropped  : unsigned(15 downto 0) := (others => '0');
    signal VI_shadow_fill_color       : unsigned(23 downto 0) := (others => '0');
    signal VI_shadow_fillrect_valid   : std_logic := '0';
    signal VI_shadow_fillrect_x0      : unsigned(9 downto 0) := (others => '0');
@@ -810,6 +811,7 @@ begin
       VI_SHADOW_TEXRECT3_X1       => VI_shadow_texrect3_x1,
       VI_SHADOW_TEXRECT3_Y0       => VI_shadow_texrect3_y0,
       VI_SHADOW_TEXRECT3_Y1       => VI_shadow_texrect3_y1,
+      VI_SHADOW_TEXRECT_DROPPED   => VI_shadow_texrect_dropped,
       VI_SHADOW_FILL_COLOR        => VI_shadow_fill_color,
       VI_SHADOW_FILLRECT_VALID    => VI_shadow_fillrect_valid,
       VI_SHADOW_FILLRECT_X0       => VI_shadow_fillrect_x0,
@@ -1023,6 +1025,7 @@ begin
       VI_SHADOW_TEXRECT3_X1 => VI_shadow_texrect3_x1,
       VI_SHADOW_TEXRECT3_Y0 => VI_shadow_texrect3_y0,
       VI_SHADOW_TEXRECT3_Y1 => VI_shadow_texrect3_y1,
+      VI_SHADOW_TEXRECT_DROPPED => VI_shadow_texrect_dropped,
       VI_SHADOW_FILL_COLOR => VI_shadow_fill_color,
       VI_SHADOW_FILLRECT_VALID => VI_shadow_fillrect_valid,
       VI_SHADOW_FILLRECT_X0 => VI_shadow_fillrect_x0,

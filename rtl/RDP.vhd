@@ -64,6 +64,7 @@ entity RDP is
       VI_SHADOW_TEXRECT3_X1        : out unsigned(9 downto 0) := (others => '0');
       VI_SHADOW_TEXRECT3_Y0        : out unsigned(8 downto 0) := (others => '0');
       VI_SHADOW_TEXRECT3_Y1        : out unsigned(8 downto 0) := (others => '0');
+      VI_SHADOW_TEXRECT_DROPPED    : out unsigned(15 downto 0) := (others => '0');
       VI_SHADOW_FILL_COLOR         : out unsigned(23 downto 0) := (others => '0');
       VI_SHADOW_FILLRECT_VALID     : out std_logic := '0';
       VI_SHADOW_FILLRECT_X0        : out unsigned(9 downto 0) := (others => '0');
@@ -275,6 +276,7 @@ architecture arch of RDP is
    signal shadow_frame_texrect3_x1_work    : unsigned(9 downto 0) := (others => '0');
    signal shadow_frame_texrect3_y0_work    : unsigned(8 downto 0) := (others => '0');
    signal shadow_frame_texrect3_y1_work    : unsigned(8 downto 0) := (others => '0');
+   signal shadow_frame_texrect_dropped_work : unsigned(15 downto 0) := (others => '0');
    signal shadow_fill_color_work        : unsigned(23 downto 0) := (others => '0');
    signal shadow_frame_fillrect_valid_work : std_logic := '0';
    signal shadow_frame_fillrect_x0_work    : unsigned(9 downto 0) := (others => '0');
@@ -946,6 +948,7 @@ begin
       variable shadow_texrect3_x1_next    : unsigned(9 downto 0);
       variable shadow_texrect3_y0_next    : unsigned(8 downto 0);
       variable shadow_texrect3_y1_next    : unsigned(8 downto 0);
+      variable shadow_texrect_dropped_next : unsigned(15 downto 0);
       variable shadow_fillrect_valid_next : std_logic;
       variable shadow_fillrect_x0_next    : unsigned(9 downto 0);
       variable shadow_fillrect_x1_next    : unsigned(9 downto 0);
@@ -1042,6 +1045,7 @@ begin
             shadow_frame_texrect3_x1_work    <= (others => '0');
             shadow_frame_texrect3_y0_work    <= (others => '0');
             shadow_frame_texrect3_y1_work    <= (others => '0');
+            shadow_frame_texrect_dropped_work <= (others => '0');
             shadow_fill_color_work        <= (others => '0');
             shadow_frame_fillrect_valid_work <= '0';
             shadow_frame_fillrect_x0_work    <= (others => '0');
@@ -1106,6 +1110,7 @@ begin
             VI_SHADOW_TEXRECT3_X1         <= (others => '0');
             VI_SHADOW_TEXRECT3_Y0         <= (others => '0');
             VI_SHADOW_TEXRECT3_Y1         <= (others => '0');
+            VI_SHADOW_TEXRECT_DROPPED     <= (others => '0');
             VI_SHADOW_FILL_COLOR          <= (others => '0');
             VI_SHADOW_FILLRECT_VALID      <= '0';
             VI_SHADOW_FILLRECT_X0         <= (others => '0');
@@ -1167,6 +1172,7 @@ begin
                shadow_texrect3_x1_next := shadow_frame_texrect3_x1_work;
                shadow_texrect3_y0_next := shadow_frame_texrect3_y0_work;
                shadow_texrect3_y1_next := shadow_frame_texrect3_y1_work;
+               shadow_texrect_dropped_next := shadow_frame_texrect_dropped_work;
                shadow_fillrect_valid_next := shadow_frame_fillrect_valid_work;
                shadow_fillrect_x0_next := shadow_frame_fillrect_x0_work;
                shadow_fillrect_x1_next := shadow_frame_fillrect_x1_work;
@@ -1387,6 +1393,9 @@ begin
                         if (fill_y_max_px > shadow_texrect_y1_next) then shadow_texrect_y1_next := fill_y_max_px; end if;
                      end if;
 
+                     if (shadow_texrect3_valid_next = '1' and shadow_texrect_dropped_next /= x"FFFF") then
+                        shadow_texrect_dropped_next := shadow_texrect_dropped_next + 1;
+                     end if;
                      shadow_texrect3_valid_next := shadow_texrect2_valid_next;
                      shadow_texrect3_x0_next    := shadow_texrect2_x0_next;
                      shadow_texrect3_x1_next    := shadow_texrect2_x1_next;
@@ -1448,6 +1457,7 @@ begin
                   VI_SHADOW_TEXRECT3_X1      <= shadow_texrect3_x1_next;
                   VI_SHADOW_TEXRECT3_Y0      <= shadow_texrect3_y0_next;
                   VI_SHADOW_TEXRECT3_Y1      <= shadow_texrect3_y1_next;
+                  VI_SHADOW_TEXRECT_DROPPED  <= shadow_texrect_dropped_next;
                   VI_SHADOW_FILL_COLOR       <= shadow_fill_color_work;
                   VI_SHADOW_FILLRECT_VALID   <= shadow_fillrect_valid_next;
                   VI_SHADOW_FILLRECT_X0      <= shadow_fillrect_x0_next;
@@ -1508,6 +1518,7 @@ begin
                   shadow_frame_texrect3_x1_work    <= (others => '0');
                   shadow_frame_texrect3_y0_work    <= (others => '0');
                   shadow_frame_texrect3_y1_work    <= (others => '0');
+                  shadow_frame_texrect_dropped_work <= (others => '0');
                   shadow_frame_fillrect_valid_work <= '0';
                   shadow_frame_fillrect_x0_work    <= (others => '0');
                   shadow_frame_fillrect_x1_work    <= (others => '0');
@@ -1572,6 +1583,7 @@ begin
                   shadow_frame_texrect3_x1_work    <= shadow_texrect3_x1_next;
                   shadow_frame_texrect3_y0_work    <= shadow_texrect3_y0_next;
                   shadow_frame_texrect3_y1_work    <= shadow_texrect3_y1_next;
+                  shadow_frame_texrect_dropped_work <= shadow_texrect_dropped_next;
                   shadow_frame_fillrect_valid_work <= shadow_fillrect_valid_next;
                   shadow_frame_fillrect_x0_work    <= shadow_fillrect_x0_next;
                   shadow_frame_fillrect_x1_work    <= shadow_fillrect_x1_next;
@@ -1637,6 +1649,7 @@ begin
                shadow_frame_texrect3_x1_work    <= (others => '0');
                shadow_frame_texrect3_y0_work    <= (others => '0');
                shadow_frame_texrect3_y1_work    <= (others => '0');
+               shadow_frame_texrect_dropped_work <= (others => '0');
                shadow_fill_color_work        <= (others => '0');
                shadow_frame_fillrect_valid_work <= '0';
                shadow_frame_fillrect_x0_work    <= (others => '0');
@@ -1701,6 +1714,7 @@ begin
                VI_SHADOW_TEXRECT3_X1         <= (others => '0');
                VI_SHADOW_TEXRECT3_Y0         <= (others => '0');
                VI_SHADOW_TEXRECT3_Y1         <= (others => '0');
+               VI_SHADOW_TEXRECT_DROPPED     <= (others => '0');
                VI_SHADOW_FILL_COLOR          <= (others => '0');
                VI_SHADOW_FILLRECT_VALID      <= '0';
                VI_SHADOW_FILLRECT_X0         <= (others => '0');

@@ -77,6 +77,7 @@ entity VI_videoout is
       VI_SHADOW_TEXRECT3_X1            : in  unsigned(9 downto 0);
       VI_SHADOW_TEXRECT3_Y0            : in  unsigned(8 downto 0);
       VI_SHADOW_TEXRECT3_Y1            : in  unsigned(8 downto 0);
+      VI_SHADOW_TEXRECT_DROPPED        : in  unsigned(15 downto 0);
       VI_SHADOW_FILL_COLOR             : in  unsigned(23 downto 0);
       VI_SHADOW_FILLRECT_VALID         : in  std_logic;
       VI_SHADOW_FILLRECT_X0            : in  unsigned(9 downto 0);
@@ -301,7 +302,7 @@ architecture arch of VI_videoout is
    signal shadow_modechar       : unsigned(7 downto 0);
    signal shadow_enabled_nibble : unsigned(3 downto 0);
    signal shadow_fillrect_valid_nibble : unsigned(3 downto 0);
-   signal shadow_text           : unsigned(503 downto 0);
+   signal shadow_text           : unsigned(551 downto 0);
    signal overlay_shadow_data   : std_logic_vector(23 downto 0);
    signal overlay_shadow_ena    : std_logic;
 
@@ -319,6 +320,7 @@ architecture arch of VI_videoout is
    signal shadow_last_texrect_count : unsigned(15 downto 0) := (others => '0');
    signal shadow_last_fillrect_valid : std_logic := '0';
    signal shadow_last_fillrect_dropped : unsigned(15 downto 0) := (others => '0');
+   signal shadow_last_texrect_dropped : unsigned(15 downto 0) := (others => '0');
    signal shadow_fallback_count   : unsigned(7 downto 0) := (others => '0');
    signal shadow_fallback_reason  : unsigned(3 downto 0) := (others => '0');
    signal shadow_no_strobe_frames : unsigned(7 downto 0) := (others => '0');
@@ -455,6 +457,7 @@ begin
             shadow_last_texrect_count <= (others => '0');
             shadow_last_fillrect_valid <= '0';
             shadow_last_fillrect_dropped <= (others => '0');
+            shadow_last_texrect_dropped <= (others => '0');
             shadow_fallback_count   <= (others => '0');
             shadow_fallback_reason  <= (others => '0');
             shadow_no_strobe_frames <= (others => '0');
@@ -534,12 +537,14 @@ begin
                shadow_last_texrect_count <= VI_SHADOW_TEXRECT_COUNT;
                shadow_last_fillrect_valid <= VI_SHADOW_FILLRECT_VALID;
                shadow_last_fillrect_dropped <= VI_SHADOW_FILLRECT_DROPPED;
+               shadow_last_texrect_dropped <= VI_SHADOW_TEXRECT_DROPPED;
             elsif (VI_SHADOW_FRAME_STROBE = '1' and VI_SHADOW_ENABLE = '1' and (VI_SHADOW_MODE = "01" or VI_SHADOW_MODE = "10")) then
                shadow_last_unsupported <= VI_SHADOW_UNSUPPORTED_CMDS;
                shadow_last_fillrect_count <= VI_SHADOW_FILLRECT_COUNT;
                shadow_last_texrect_count <= VI_SHADOW_TEXRECT_COUNT;
                shadow_last_fillrect_valid <= VI_SHADOW_FILLRECT_VALID;
                shadow_last_fillrect_dropped <= VI_SHADOW_FILLRECT_DROPPED;
+               shadow_last_texrect_dropped <= VI_SHADOW_TEXRECT_DROPPED;
             end if;
          end if;
       
@@ -980,6 +985,8 @@ begin
                   conv_number(shadow_last_fillrect_count) &
                   to_unsigned(" T") &
                   conv_number(shadow_last_texrect_count) &
+                  to_unsigned(" X") &
+                  conv_number(shadow_last_texrect_dropped) &
                   to_unsigned(" V") &
                   conv_number(shadow_fillrect_valid_nibble) &
                   to_unsigned(" L") &
@@ -1006,7 +1013,7 @@ begin
       textstring             => vi_exp_text
    );
 
-   ioverlayVIShadow : entity work.VI_overlay generic map (63, 14, 26, x"007070")
+   ioverlayVIShadow : entity work.VI_overlay generic map (69, 14, 26, x"007070")
    port map
    (
       clk                    => clkvid,
