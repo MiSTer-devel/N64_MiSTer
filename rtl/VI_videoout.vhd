@@ -283,7 +283,7 @@ begin
    videoout_settings.VI_HSYNC_WIDTH    <= VI_HSYNC_WIDTH;
    videoout_settings.VI_VSYNC_WIDTH    <= VI_VSYNC_WIDTH;
 
-   shadow_runtime_enable <= '1' when (VI_SHADOW_ENABLE = '1' and VI_SHADOW_MODE = "01" and shadow_fallback_reason = x"0") else '0';
+   shadow_runtime_enable <= '1' when (VI_SHADOW_ENABLE = '1' and (VI_SHADOW_MODE = "01" or VI_SHADOW_MODE = "10") and shadow_fallback_reason = x"0") else '0';
    shadow_guard_unsupported <= '1' when (VI_CTRL_TYPE = "00" or VI_WIDTH = 0) else '0';
    
    process (clk1x)
@@ -297,7 +297,7 @@ begin
             shadow_fallback_count   <= (others => '0');
             shadow_fallback_reason  <= (others => '0');
          else
-            if (VI_SHADOW_ENABLE = '0' or VI_SHADOW_MODE /= "01") then
+            if (VI_SHADOW_ENABLE = '0' or (VI_SHADOW_MODE /= "01" and VI_SHADOW_MODE /= "10")) then
                -- Manual disable/mode switch clears sticky fallback latch.
                shadow_fallback_reason <= (others => '0');
             elsif (shadow_guard_unsupported = '1' and shadow_fallback_reason = x"0") then
@@ -312,7 +312,7 @@ begin
                shadow_fallback_reason <= x"2";
             end if;
 
-            if (VI_SHADOW_FRAME_STROBE = '1' and VI_SHADOW_ENABLE = '1' and VI_SHADOW_MODE = "01" and VI_SHADOW_UNSUPPORTED_CMDS /= 0) then
+            if (VI_SHADOW_FRAME_STROBE = '1' and VI_SHADOW_ENABLE = '1' and (VI_SHADOW_MODE = "01" or VI_SHADOW_MODE = "10") and VI_SHADOW_UNSUPPORTED_CMDS /= 0) then
                shadow_div_next := shadow_divergence_count;
                if (shadow_div_next > x"FFFF" - VI_SHADOW_UNSUPPORTED_CMDS) then
                   shadow_div_next := x"FFFF";
@@ -746,7 +746,8 @@ begin
                   conv_number(resize(VI_EXPERIMENTAL_AUTO_UNSTABLE, 4));
 
    with VI_SHADOW_MODE select
-      shadow_modechar <= x"50" when "01", -- P (PoC shadow)
+      shadow_modechar <= x"50" when "01", -- P (fill_only profile)
+                        x"43" when "10", -- C (fill_copy profile)
                         x"4F" when others; -- O (off)
 
    shadow_enabled_nibble <= x"1" when (shadow_runtime_enable = '1') else x"0";

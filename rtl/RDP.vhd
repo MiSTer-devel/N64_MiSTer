@@ -118,11 +118,24 @@ end entity;
 
 architecture arch of RDP is
 
-   function shadow_opcode_supported(opcode : unsigned(5 downto 0)) return boolean is
+   function shadow_opcode_supported(mode : unsigned(1 downto 0); opcode : unsigned(5 downto 0)) return boolean is
    begin
-      case opcode is
-         when 6x"00" | 6x"26" | 6x"27" | 6x"28" | 6x"29" | 6x"2D" | 6x"2F" | 6x"36" | 6x"37" | 6x"3F" =>
-            return true;
+      case mode is
+         when "01" => -- fill_only
+            case opcode is
+               when 6x"00" | 6x"26" | 6x"27" | 6x"28" | 6x"29" | 6x"2D" | 6x"2F" | 6x"36" | 6x"37" | 6x"3F" =>
+                  return true;
+               when others =>
+                  return false;
+            end case;
+         when "10" => -- fill_copy
+            case opcode is
+               when 6x"00" | 6x"24" | 6x"25" | 6x"26" | 6x"27" | 6x"28" | 6x"29" | 6x"2D" | 6x"2F" |
+                    6x"30" | 6x"32" | 6x"33" | 6x"34" | 6x"35" | 6x"36" | 6x"37" | 6x"3D" | 6x"3F" =>
+                  return true;
+               when others =>
+                  return false;
+            end case;
          when others =>
             return false;
       end case;
@@ -792,10 +805,10 @@ begin
             shadow_frame_unsupported_work <= (others => '0');
             VI_SHADOW_UNSUPPORTED_CMDS    <= (others => '0');
          elsif (ce = '1') then
-            if (VI_SHADOW_ENABLE = '1' and VI_SHADOW_MODE = "01") then
+            if (VI_SHADOW_ENABLE = '1' and (VI_SHADOW_MODE = "01" or VI_SHADOW_MODE = "10")) then
                shadow_next := shadow_frame_unsupported_work;
 
-               if (shadow_cmd_done = '1' and (not shadow_opcode_supported(shadow_cmd_opcode))) then
+               if (shadow_cmd_done = '1' and (not shadow_opcode_supported(VI_SHADOW_MODE, shadow_cmd_opcode))) then
                   if (shadow_next /= x"FFFF") then
                      shadow_next := shadow_next + 1;
                   end if;

@@ -60,6 +60,9 @@ Changes:
   - `1`: unsupported VI mode (`VI_CTRL_TYPE=0` or zero width)
   - `2`: VI processing error (`error_linefetch`/`error_outProcess`)
   - `3`: frame uses RDP commands outside current shadow subset
+- Shadow subset mode mapping (current PoC):
+  - mode `01`: `fill_only`
+  - mode `10`: `fill_copy`
 
 Acceptance:
 - Overlay shows stable counters in `Off` mode.
