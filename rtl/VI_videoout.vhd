@@ -249,7 +249,8 @@ architecture arch of VI_videoout is
 
    signal shadow_modechar       : unsigned(7 downto 0);
    signal shadow_enabled_nibble : unsigned(3 downto 0);
-   signal shadow_text           : unsigned(271 downto 0);
+   signal shadow_fillrect_valid_nibble : unsigned(3 downto 0);
+   signal shadow_text           : unsigned(343 downto 0);
    signal overlay_shadow_data   : std_logic_vector(23 downto 0);
    signal overlay_shadow_ena    : std_logic;
 
@@ -263,6 +264,8 @@ architecture arch of VI_videoout is
    signal shadow_frame_count      : unsigned(15 downto 0) := (others => '0');
    signal shadow_divergence_count : unsigned(15 downto 0) := (others => '0');
    signal shadow_last_unsupported : unsigned(15 downto 0) := (others => '0');
+   signal shadow_last_fillrect_count : unsigned(15 downto 0) := (others => '0');
+   signal shadow_last_fillrect_valid : std_logic := '0';
    signal shadow_fallback_count   : unsigned(7 downto 0) := (others => '0');
    signal shadow_fallback_reason  : unsigned(3 downto 0) := (others => '0');
    
@@ -341,6 +344,8 @@ begin
             shadow_frame_count      <= (others => '0');
             shadow_divergence_count <= (others => '0');
             shadow_last_unsupported <= (others => '0');
+            shadow_last_fillrect_count <= (others => '0');
+            shadow_last_fillrect_valid <= '0';
             shadow_fallback_count   <= (others => '0');
             shadow_fallback_reason  <= (others => '0');
          else
@@ -368,6 +373,8 @@ begin
                end if;
                shadow_divergence_count <= shadow_div_next;
                shadow_last_unsupported <= VI_SHADOW_UNSUPPORTED_CMDS;
+               shadow_last_fillrect_count <= VI_SHADOW_FILLRECT_COUNT;
+               shadow_last_fillrect_valid <= VI_SHADOW_FILLRECT_VALID;
 
                if (shadow_fallback_reason = x"0") then
                   if (shadow_fallback_count /= x"FF") then
@@ -377,6 +384,8 @@ begin
                end if;
             elsif (VI_SHADOW_FRAME_STROBE = '1' and VI_SHADOW_ENABLE = '1' and (VI_SHADOW_MODE = "01" or VI_SHADOW_MODE = "10")) then
                shadow_last_unsupported <= VI_SHADOW_UNSUPPORTED_CMDS;
+               shadow_last_fillrect_count <= VI_SHADOW_FILLRECT_COUNT;
+               shadow_last_fillrect_valid <= VI_SHADOW_FILLRECT_VALID;
             end if;
          end if;
       
@@ -801,6 +810,7 @@ begin
                         x"4F" when others; -- O (off)
 
    shadow_enabled_nibble <= x"1" when (shadow_output_enable = '1') else x"0";
+   shadow_fillrect_valid_nibble <= x"1" when (shadow_last_fillrect_valid = '1') else x"0";
 
    shadow_text <= to_unsigned("VXS M") &
                   shadow_modechar &
@@ -812,6 +822,10 @@ begin
                   conv_number(shadow_divergence_count) &
                   to_unsigned(" U") &
                   conv_number(shadow_last_unsupported) &
+                  to_unsigned(" Q") &
+                  conv_number(shadow_last_fillrect_count) &
+                  to_unsigned(" V") &
+                  conv_number(shadow_fillrect_valid_nibble) &
                   to_unsigned(" F") &
                   conv_number(shadow_fallback_count) &
                   to_unsigned(" R") &
@@ -830,7 +844,7 @@ begin
       textstring             => vi_exp_text
    );
 
-   ioverlayVIShadow : entity work.VI_overlay generic map (34, 14, 26, x"007070")
+   ioverlayVIShadow : entity work.VI_overlay generic map (43, 14, 26, x"007070")
    port map
    (
       clk                    => clkvid,
