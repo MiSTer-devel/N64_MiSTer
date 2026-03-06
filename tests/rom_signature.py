@@ -37,7 +37,13 @@ def main() -> int:
         "--mode",
         default="auto",
         choices=("off", "auto", "bob", "weave"),
-        help="Mode value to emit in the N64.sv case line (default: auto).",
+        help="Experimental VI mode value to emit in the case line (default: auto).",
+    )
+    parser.add_argument(
+        "--shadow-mode",
+        default=None,
+        choices=("off", "fill_only", "fill_copy"),
+        help="Optional shadow mode case line to emit for profile_vi_shadow_mode(...).",
     )
     args = parser.parse_args()
 
@@ -49,12 +55,20 @@ def main() -> int:
         "weave": "2'b11",
     }
     mode_bits = mode_map[args.mode]
+    shadow_mode_map = {
+        "off": "2'b00",
+        "fill_only": "2'b01",
+        "fill_copy": "2'b10",
+    }
     print(f"ROM: {args.rom}")
     print(f"Size (bytes, 27-bit): 0x{size:07X} ({size})")
     print(f"FNV1a32: 0x{h:08X}")
     print(f"Signature (64-bit): 0x{sig:016X}")
-    print("Case entry:")
+    print("Experimental VI case entry:")
     print(f"64'h{sig:016X}: profile_vi_experimental_mode = {mode_bits};")
+    if args.shadow_mode is not None:
+        print("Shadow VI case entry:")
+        print(f"64'h{sig:016X}: profile_vi_shadow_mode = {shadow_mode_map[args.shadow_mode]};")
     return 0
 
 

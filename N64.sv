@@ -483,7 +483,7 @@ endfunction
 
 function automatic [1:0] profile_vi_shadow_mode(input [63:0] rom_signature);
 begin
-	// 2'b00 = Off, 2'b01 = ShadowPoC (reserved for future expansion)
+	// 2'b00 = Off, 2'b01 = fill_only subset, 2'b10 = fill_copy subset
 	profile_vi_shadow_mode = 2'b00;
 	case (rom_signature)
 		// Add explicit per-ROM signatures here to opt in experimental shadow rendering.

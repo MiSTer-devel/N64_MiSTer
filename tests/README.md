@@ -62,6 +62,12 @@ tests/rom_signature.py /path/to/your.rom.z64
 
 Use the printed `case` line in `N64.sv` inside `profile_vi_experimental_mode(...)`.
 
+To also print a shadow mode case entry:
+
+```bash
+tests/rom_signature.py /path/to/your.rom.z64 --shadow-mode fill_only
+```
+
 ## RDP Trace Replay Validator (Option #3)
 Use the replay validator to inspect simulation command traces emitted by `rtl/RDP.vhd`:
 
@@ -84,3 +90,5 @@ Optional outputs:
   - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt --subset fill_only`
 - Fail CI when subset is exceeded:
   - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt --subset fill_only --strict-subset`
+- Print shadow-mode recommendation:
+  - always included in summary (`fill_only`, `fill_copy`, or `off`)

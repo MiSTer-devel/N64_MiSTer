@@ -88,6 +88,11 @@ SUBSETS: dict[str, set[int]] = {
     },
 }
 
+SHADOW_MODE_BY_SUBSET = {
+    "fill_only": "2'b01",
+    "fill_copy": "2'b10",
+}
+
 
 @dataclass
 class FrameState:
@@ -115,6 +120,40 @@ def _sorted_histogram_items(hist: dict[int, int]) -> list[dict]:
 
 def _first_n_sorted(values: Iterable[int], limit: int) -> list[int]:
     return sorted(values)[:limit]
+
+
+def _unsupported_for_subset(opcode_hist: dict[int, int], subset_name: str) -> int:
+    allowed = SUBSETS[subset_name]
+    return sum(count for opcode, count in opcode_hist.items() if opcode not in allowed)
+
+
+def _recommend_shadow_mode(opcode_hist: dict[int, int], total_commands: int) -> dict:
+    if total_commands == 0:
+        return {
+            "mode_bits": "2'b00",
+            "mode_name": "off",
+            "reason": "trace contains no commands",
+        }
+
+    if _unsupported_for_subset(opcode_hist, "fill_only") == 0:
+        return {
+            "mode_bits": SHADOW_MODE_BY_SUBSET["fill_only"],
+            "mode_name": "fill_only",
+            "reason": "all observed commands fit fill_only subset",
+        }
+
+    if _unsupported_for_subset(opcode_hist, "fill_copy") == 0:
+        return {
+            "mode_bits": SHADOW_MODE_BY_SUBSET["fill_copy"],
+            "mode_name": "fill_copy",
+            "reason": "all observed commands fit fill_copy subset",
+        }
+
+    return {
+        "mode_bits": "2'b00",
+        "mode_name": "off",
+        "reason": "observed commands exceed fill_copy subset",
+    }
 
 
 def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = None) -> dict:
@@ -209,6 +248,14 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
     subset_frames_clean = 0
     if allowed_opcodes is not None:
         subset_frames_clean = len(frame_ids) - len(subset_violation_frames)
+    subset_compatibility = {}
+    for subset_name in sorted(SUBSETS.keys()):
+        unsupported = _unsupported_for_subset(opcode_hist, subset_name)
+        subset_compatibility[subset_name] = {
+            "unsupported_commands": unsupported,
+            "supported": unsupported == 0,
+        }
+    recommended_shadow_mode = _recommend_shadow_mode(opcode_hist, total_commands)
 
     return {
         "trace_file": str(path),
@@ -228,6 +275,8 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
             "unparsed_lines": bad_parse_lines,
         },
         "opcode_histogram": _sorted_histogram_items(opcode_hist),
+        "subset_compatibility": subset_compatibility,
+        "recommended_shadow_mode": recommended_shadow_mode,
         "subset_analysis": (
             {
                 "subset": subset,
@@ -324,6 +373,21 @@ def main() -> int:
     print(f"Opcodes observed: {len(summary['opcode_histogram'])}")
     for item in summary["opcode_histogram"][:10]:
         print(f"  {item['opcode']} {item['name']}: {item['count']}")
+
+    recommendation = summary["recommended_shadow_mode"]
+    print(
+        "Shadow mode recommendation: "
+        f"{recommendation['mode_name']} ({recommendation['mode_bits']})"
+    )
+    print(f"  reason: {recommendation['reason']}")
+    print("  compatibility:")
+    for subset_name in sorted(summary["subset_compatibility"].keys()):
+        compat = summary["subset_compatibility"][subset_name]
+        print(
+            f"    {subset_name}: "
+            f"unsupported_commands={compat['unsupported_commands']} "
+            f"supported={compat['supported']}"
+        )
 
     if subset_analysis is not None:
         print(f"Subset analysis: {subset_analysis['subset']}")
