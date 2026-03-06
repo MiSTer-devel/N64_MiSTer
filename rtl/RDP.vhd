@@ -39,6 +39,11 @@ entity RDP is
       VI_SHADOW_UNSUPPORTED_CMDS   : out unsigned(15 downto 0) := (others => '0');
       VI_SHADOW_FILLRECT_COUNT     : out unsigned(15 downto 0) := (others => '0');
       VI_SHADOW_FILL_COLOR         : out unsigned(23 downto 0) := (others => '0');
+      VI_SHADOW_FILLRECT_VALID     : out std_logic := '0';
+      VI_SHADOW_FILLRECT_X0        : out unsigned(9 downto 0) := (others => '0');
+      VI_SHADOW_FILLRECT_X1        : out unsigned(9 downto 0) := (others => '0');
+      VI_SHADOW_FILLRECT_Y0        : out unsigned(8 downto 0) := (others => '0');
+      VI_SHADOW_FILLRECT_Y1        : out unsigned(8 downto 0) := (others => '0');
             
       irq_out              : out std_logic := '0';
             
@@ -194,6 +199,11 @@ architecture arch of RDP is
    signal shadow_frame_unsupported_work : unsigned(15 downto 0) := (others => '0');
    signal shadow_frame_fillrect_work    : unsigned(15 downto 0) := (others => '0');
    signal shadow_fill_color_work        : unsigned(23 downto 0) := (others => '0');
+   signal shadow_frame_fillrect_valid_work : std_logic := '0';
+   signal shadow_frame_fillrect_x0_work    : unsigned(11 downto 0) := (others => '0');
+   signal shadow_frame_fillrect_x1_work    : unsigned(11 downto 0) := (others => '0');
+   signal shadow_frame_fillrect_y0_work    : unsigned(11 downto 0) := (others => '0');
+   signal shadow_frame_fillrect_y1_work    : unsigned(11 downto 0) := (others => '0');
    
    -- Texture request ram
    signal TextureReqRAMreq          : std_logic;
@@ -803,6 +813,19 @@ begin
    process (clk1x)
       variable shadow_next : unsigned(15 downto 0);
       variable shadow_fillrect_next : unsigned(15 downto 0);
+      variable shadow_fillrect_valid_next : std_logic;
+      variable shadow_fillrect_x0_next    : unsigned(11 downto 0);
+      variable shadow_fillrect_x1_next    : unsigned(11 downto 0);
+      variable shadow_fillrect_y0_next    : unsigned(11 downto 0);
+      variable shadow_fillrect_y1_next    : unsigned(11 downto 0);
+      variable fill_xh : unsigned(11 downto 0);
+      variable fill_xl : unsigned(11 downto 0);
+      variable fill_yh : unsigned(11 downto 0);
+      variable fill_yl : unsigned(11 downto 0);
+      variable fill_x_min : unsigned(11 downto 0);
+      variable fill_x_max : unsigned(11 downto 0);
+      variable fill_y_min : unsigned(11 downto 0);
+      variable fill_y_max : unsigned(11 downto 0);
    begin
       if rising_edge(clk1x) then
          VI_SHADOW_FRAME_STROBE <= '0';
@@ -811,18 +834,63 @@ begin
             shadow_frame_unsupported_work <= (others => '0');
             shadow_frame_fillrect_work    <= (others => '0');
             shadow_fill_color_work        <= (others => '0');
+            shadow_frame_fillrect_valid_work <= '0';
+            shadow_frame_fillrect_x0_work    <= (others => '0');
+            shadow_frame_fillrect_x1_work    <= (others => '0');
+            shadow_frame_fillrect_y0_work    <= (others => '0');
+            shadow_frame_fillrect_y1_work    <= (others => '0');
             VI_SHADOW_UNSUPPORTED_CMDS    <= (others => '0');
             VI_SHADOW_FILLRECT_COUNT      <= (others => '0');
             VI_SHADOW_FILL_COLOR          <= (others => '0');
+            VI_SHADOW_FILLRECT_VALID      <= '0';
+            VI_SHADOW_FILLRECT_X0         <= (others => '0');
+            VI_SHADOW_FILLRECT_X1         <= (others => '0');
+            VI_SHADOW_FILLRECT_Y0         <= (others => '0');
+            VI_SHADOW_FILLRECT_Y1         <= (others => '0');
          elsif (ce = '1') then
             if (VI_SHADOW_ENABLE = '1' and (VI_SHADOW_MODE = "01" or VI_SHADOW_MODE = "10")) then
                shadow_next := shadow_frame_unsupported_work;
                shadow_fillrect_next := shadow_frame_fillrect_work;
+               shadow_fillrect_valid_next := shadow_frame_fillrect_valid_work;
+               shadow_fillrect_x0_next := shadow_frame_fillrect_x0_work;
+               shadow_fillrect_x1_next := shadow_frame_fillrect_x1_work;
+               shadow_fillrect_y0_next := shadow_frame_fillrect_y0_work;
+               shadow_fillrect_y1_next := shadow_frame_fillrect_y1_work;
 
                if (shadow_cmd_done = '1' and shadow_cmd_opcode = 6x"37") then
                   shadow_fill_color_work <= shadow_cmd_data(23 downto 0);
                end if;
                if (shadow_cmd_done = '1' and shadow_cmd_opcode = 6x"36") then
+                  fill_xh := shadow_cmd_data(55 downto 44);
+                  fill_xl := shadow_cmd_data(23 downto 12);
+                  fill_yh := shadow_cmd_data(11 downto 0);
+                  fill_yl := shadow_cmd_data(43 downto 32);
+                  if (fill_xh <= fill_xl) then
+                     fill_x_min := fill_xh;
+                     fill_x_max := fill_xl;
+                  else
+                     fill_x_min := fill_xl;
+                     fill_x_max := fill_xh;
+                  end if;
+                  if (fill_yh <= fill_yl) then
+                     fill_y_min := fill_yh;
+                     fill_y_max := fill_yl;
+                  else
+                     fill_y_min := fill_yl;
+                     fill_y_max := fill_yh;
+                  end if;
+                  if (shadow_fillrect_valid_next = '0') then
+                     shadow_fillrect_valid_next := '1';
+                     shadow_fillrect_x0_next := fill_x_min;
+                     shadow_fillrect_x1_next := fill_x_max;
+                     shadow_fillrect_y0_next := fill_y_min;
+                     shadow_fillrect_y1_next := fill_y_max;
+                  else
+                     if (fill_x_min < shadow_fillrect_x0_next) then shadow_fillrect_x0_next := fill_x_min; end if;
+                     if (fill_x_max > shadow_fillrect_x1_next) then shadow_fillrect_x1_next := fill_x_max; end if;
+                     if (fill_y_min < shadow_fillrect_y0_next) then shadow_fillrect_y0_next := fill_y_min; end if;
+                     if (fill_y_max > shadow_fillrect_y1_next) then shadow_fillrect_y1_next := fill_y_max; end if;
+                  end if;
                   if (shadow_fillrect_next /= x"FFFF") then
                      shadow_fillrect_next := shadow_fillrect_next + 1;
                   end if;
@@ -838,20 +906,45 @@ begin
                   VI_SHADOW_UNSUPPORTED_CMDS <= shadow_next;
                   VI_SHADOW_FILLRECT_COUNT   <= shadow_fillrect_next;
                   VI_SHADOW_FILL_COLOR       <= shadow_fill_color_work;
+                  VI_SHADOW_FILLRECT_VALID   <= shadow_fillrect_valid_next;
+                  VI_SHADOW_FILLRECT_X0      <= shadow_fillrect_x0_next(9 downto 0);
+                  VI_SHADOW_FILLRECT_X1      <= shadow_fillrect_x1_next(9 downto 0);
+                  VI_SHADOW_FILLRECT_Y0      <= shadow_fillrect_y0_next(8 downto 0);
+                  VI_SHADOW_FILLRECT_Y1      <= shadow_fillrect_y1_next(8 downto 0);
                   VI_SHADOW_FRAME_STROBE     <= '1';
                   shadow_frame_unsupported_work <= (others => '0');
                   shadow_frame_fillrect_work    <= (others => '0');
+                  shadow_frame_fillrect_valid_work <= '0';
+                  shadow_frame_fillrect_x0_work    <= (others => '0');
+                  shadow_frame_fillrect_x1_work    <= (others => '0');
+                  shadow_frame_fillrect_y0_work    <= (others => '0');
+                  shadow_frame_fillrect_y1_work    <= (others => '0');
                else
                   shadow_frame_unsupported_work <= shadow_next;
                   shadow_frame_fillrect_work    <= shadow_fillrect_next;
+                  shadow_frame_fillrect_valid_work <= shadow_fillrect_valid_next;
+                  shadow_frame_fillrect_x0_work    <= shadow_fillrect_x0_next;
+                  shadow_frame_fillrect_x1_work    <= shadow_fillrect_x1_next;
+                  shadow_frame_fillrect_y0_work    <= shadow_fillrect_y0_next;
+                  shadow_frame_fillrect_y1_work    <= shadow_fillrect_y1_next;
                end if;
             else
                shadow_frame_unsupported_work <= (others => '0');
                shadow_frame_fillrect_work    <= (others => '0');
                shadow_fill_color_work        <= (others => '0');
+               shadow_frame_fillrect_valid_work <= '0';
+               shadow_frame_fillrect_x0_work    <= (others => '0');
+               shadow_frame_fillrect_x1_work    <= (others => '0');
+               shadow_frame_fillrect_y0_work    <= (others => '0');
+               shadow_frame_fillrect_y1_work    <= (others => '0');
                VI_SHADOW_UNSUPPORTED_CMDS    <= (others => '0');
                VI_SHADOW_FILLRECT_COUNT      <= (others => '0');
                VI_SHADOW_FILL_COLOR          <= (others => '0');
+               VI_SHADOW_FILLRECT_VALID      <= '0';
+               VI_SHADOW_FILLRECT_X0         <= (others => '0');
+               VI_SHADOW_FILLRECT_X1         <= (others => '0');
+               VI_SHADOW_FILLRECT_Y0         <= (others => '0');
+               VI_SHADOW_FILLRECT_Y1         <= (others => '0');
             end if;
          end if;
       end if;

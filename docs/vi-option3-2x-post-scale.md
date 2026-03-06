@@ -126,6 +126,7 @@ Changes:
   - native/shadow display mux in `VI_videoout`
   - `VI_shadow_stub` module for shadow RGB generation (currently tint/checker)
   - RDP per-frame fill metadata (`fillrect_count`, `fill_color`) piped into shadow path
+  - RDP per-frame fill bounds (`x0/x1/y0/y1`, valid bit) piped into shadow path
   - timing remains sourced from native VI output path
 
 Acceptance:
