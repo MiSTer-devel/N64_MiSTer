@@ -6,32 +6,66 @@ cd "$ROOT_DIR"
 
 RUN_QUARTUS=0
 ALLOW_MISSING_REQUIRED_ROMS=0
+RDP_TRACE=""
+RDP_SUBSET=""
 
-for arg in "$@"; do
-  case "$arg" in
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     --quartus-compile)
       RUN_QUARTUS=1
+      shift
       ;;
     --allow-missing-required-roms)
       ALLOW_MISSING_REQUIRED_ROMS=1
+      shift
+      ;;
+    --rdp-trace)
+      if [[ $# -lt 2 ]]; then
+        echo "--rdp-trace requires a path argument" >&2
+        exit 2
+      fi
+      RDP_TRACE="$2"
+      shift 2
+      ;;
+    --rdp-subset)
+      if [[ $# -lt 2 ]]; then
+        echo "--rdp-subset requires a value argument" >&2
+        exit 2
+      fi
+      RDP_SUBSET="$2"
+      shift 2
       ;;
     -h|--help)
       cat <<'EOF'
-Usage: tests/run_regression.sh [--quartus-compile] [--allow-missing-required-roms]
+Usage: tests/run_regression.sh [--quartus-compile] [--allow-missing-required-roms] [--rdp-trace PATH] [--rdp-subset NAME]
 
 Automated baseline checks for this repository.
   --quartus-compile   Run optional Quartus compile step (slow).
   --allow-missing-required-roms
                      Downgrade missing required ROM patterns to warnings.
+  --rdp-trace PATH    Run RDP trace replay validation on PATH.
+  --rdp-subset NAME   Optional subset profile for strict replay gating
+                     (`fill_only` or `fill_copy`, requires --rdp-trace).
 EOF
       exit 0
       ;;
     *)
-      echo "Unknown argument: $arg" >&2
+      echo "Unknown argument: $1" >&2
       exit 2
       ;;
   esac
+
 done
+
+if [[ -n "$RDP_SUBSET" && "$RDP_SUBSET" != "fill_only" && "$RDP_SUBSET" != "fill_copy" ]]; then
+  echo "Unsupported --rdp-subset '$RDP_SUBSET' (expected: fill_only or fill_copy)" >&2
+  exit 2
+fi
+
+if [[ -n "$RDP_SUBSET" && -z "$RDP_TRACE" ]]; then
+  echo "--rdp-subset requires --rdp-trace PATH" >&2
+  exit 2
+fi
 
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -194,10 +228,42 @@ run_quartus_compile() {
   fi
 }
 
+run_rdp_trace_check() {
+  if [[ -z "$RDP_TRACE" ]]; then
+    warn "RDP trace replay skipped (pass --rdp-trace to enable)"
+    return 0
+  fi
+
+  if [[ ! -f "$RDP_TRACE" ]]; then
+    fail "RDP trace file not found: $RDP_TRACE"
+    return 1
+  fi
+
+  local -a cmd=(python3 "$ROOT_DIR/tests/rdp_trace_replay.py" "$RDP_TRACE" --strict)
+  if [[ -n "$RDP_SUBSET" ]]; then
+    cmd+=(--subset "$RDP_SUBSET" --strict-subset)
+  fi
+
+  echo "[INFO] Running RDP trace replay validator: $RDP_TRACE"
+  local replay_log
+  replay_log="$(mktemp)"
+  if "${cmd[@]}" >"$replay_log" 2>&1; then
+    cat "$replay_log"
+    pass "RDP trace replay validation"
+  else
+    cat "$replay_log"
+    fail "RDP trace replay validation failed"
+    rm -f "$replay_log"
+    return 1
+  fi
+  rm -f "$replay_log"
+}
+
 echo "== N64_MiSTer Regression =="
 check_merge_markers || true
 check_project_file_refs || true
 check_test_rom_manifest || true
+run_rdp_trace_check || true
 run_quartus_compile || true
 
 echo

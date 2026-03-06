@@ -33,6 +33,18 @@ Run in CI environments without staged ROM assets:
 tests/run_regression.sh --allow-missing-required-roms
 ```
 
+Run replay validation on a captured RDP trace:
+
+```bash
+tests/run_regression.sh --allow-missing-required-roms --rdp-trace /path/to/rdp_n64_sim.txt
+```
+
+Run replay validation with strict subset gating:
+
+```bash
+tests/run_regression.sh --allow-missing-required-roms --rdp-trace /path/to/rdp_n64_sim.txt --rdp-subset fill_only
+```
+
 ## GitHub Actions
 - Hosted baseline checks run via `.github/workflows/regression.yml`.
 - Quartus compilation is defined in `.github/workflows/quartus-self-hosted.yml` and is intended for a self-hosted Linux runner labeled `quartus`.
