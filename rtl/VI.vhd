@@ -40,6 +40,8 @@ entity VI is
       VI_EXPERIMENTAL_ENABLE : in  std_logic;
       VI_EXPERIMENTAL_MODE   : in  unsigned(1 downto 0);
       VI_EXPERIMENTAL_SIGNATURE : in unsigned(15 downto 0);
+      VI_SHADOW_ENABLE : in  std_logic;
+      VI_SHADOW_MODE   : in  unsigned(1 downto 0);
       
       errorEna         : in  std_logic;
       errorCode        : in  unsigned(31 downto 0);
