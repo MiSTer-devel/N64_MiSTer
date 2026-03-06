@@ -48,6 +48,12 @@ def main() -> int:
         f"{trace_summary['frames_with_shadow_fillrect']} frames "
         f"(clipped_out={trace_summary['fillrect_shadow_clipped_out_commands']})"
     )
+    print(
+        "Shadow slot overflow: "
+        f"limit={trace_summary['fillrect_shadow_slot_limit']} "
+        f"dropped={trace_summary['fillrect_shadow_dropped_commands']} "
+        f"frames={trace_summary['frames_with_shadow_fillrect_overflow']}"
+    )
     bounds_raw = trace_summary["fillrect_bounds_px_raw"]
     if bounds_raw is not None:
         print(
