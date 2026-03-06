@@ -200,10 +200,10 @@ architecture arch of RDP is
    signal shadow_frame_fillrect_work    : unsigned(15 downto 0) := (others => '0');
    signal shadow_fill_color_work        : unsigned(23 downto 0) := (others => '0');
    signal shadow_frame_fillrect_valid_work : std_logic := '0';
-   signal shadow_frame_fillrect_x0_work    : unsigned(11 downto 0) := (others => '0');
-   signal shadow_frame_fillrect_x1_work    : unsigned(11 downto 0) := (others => '0');
-   signal shadow_frame_fillrect_y0_work    : unsigned(11 downto 0) := (others => '0');
-   signal shadow_frame_fillrect_y1_work    : unsigned(11 downto 0) := (others => '0');
+   signal shadow_frame_fillrect_x0_work    : unsigned(9 downto 0) := (others => '0');
+   signal shadow_frame_fillrect_x1_work    : unsigned(9 downto 0) := (others => '0');
+   signal shadow_frame_fillrect_y0_work    : unsigned(8 downto 0) := (others => '0');
+   signal shadow_frame_fillrect_y1_work    : unsigned(8 downto 0) := (others => '0');
    
    -- Texture request ram
    signal TextureReqRAMreq          : std_logic;
@@ -814,10 +814,10 @@ begin
       variable shadow_next : unsigned(15 downto 0);
       variable shadow_fillrect_next : unsigned(15 downto 0);
       variable shadow_fillrect_valid_next : std_logic;
-      variable shadow_fillrect_x0_next    : unsigned(11 downto 0);
-      variable shadow_fillrect_x1_next    : unsigned(11 downto 0);
-      variable shadow_fillrect_y0_next    : unsigned(11 downto 0);
-      variable shadow_fillrect_y1_next    : unsigned(11 downto 0);
+      variable shadow_fillrect_x0_next    : unsigned(9 downto 0);
+      variable shadow_fillrect_x1_next    : unsigned(9 downto 0);
+      variable shadow_fillrect_y0_next    : unsigned(8 downto 0);
+      variable shadow_fillrect_y1_next    : unsigned(8 downto 0);
       variable fill_xh : unsigned(11 downto 0);
       variable fill_xl : unsigned(11 downto 0);
       variable fill_yh : unsigned(11 downto 0);
@@ -826,6 +826,10 @@ begin
       variable fill_x_max : unsigned(11 downto 0);
       variable fill_y_min : unsigned(11 downto 0);
       variable fill_y_max : unsigned(11 downto 0);
+      variable fill_x_min_px : unsigned(9 downto 0);
+      variable fill_x_max_px : unsigned(9 downto 0);
+      variable fill_y_min_px : unsigned(8 downto 0);
+      variable fill_y_max_px : unsigned(8 downto 0);
    begin
       if rising_edge(clk1x) then
          VI_SHADOW_FRAME_STROBE <= '0';
@@ -879,17 +883,23 @@ begin
                      fill_y_min := fill_yl;
                      fill_y_max := fill_yh;
                   end if;
+                  -- Fill rectangle command coordinates are in 10.2 fixed-point.
+                  -- Convert to integer pixel domain before handing off to VI shadow masking.
+                  fill_x_min_px := fill_x_min(11 downto 2);
+                  fill_x_max_px := fill_x_max(11 downto 2);
+                  fill_y_min_px := fill_y_min(11 downto 2);
+                  fill_y_max_px := fill_y_max(11 downto 2);
                   if (shadow_fillrect_valid_next = '0') then
                      shadow_fillrect_valid_next := '1';
-                     shadow_fillrect_x0_next := fill_x_min;
-                     shadow_fillrect_x1_next := fill_x_max;
-                     shadow_fillrect_y0_next := fill_y_min;
-                     shadow_fillrect_y1_next := fill_y_max;
+                     shadow_fillrect_x0_next := fill_x_min_px;
+                     shadow_fillrect_x1_next := fill_x_max_px;
+                     shadow_fillrect_y0_next := fill_y_min_px;
+                     shadow_fillrect_y1_next := fill_y_max_px;
                   else
-                     if (fill_x_min < shadow_fillrect_x0_next) then shadow_fillrect_x0_next := fill_x_min; end if;
-                     if (fill_x_max > shadow_fillrect_x1_next) then shadow_fillrect_x1_next := fill_x_max; end if;
-                     if (fill_y_min < shadow_fillrect_y0_next) then shadow_fillrect_y0_next := fill_y_min; end if;
-                     if (fill_y_max > shadow_fillrect_y1_next) then shadow_fillrect_y1_next := fill_y_max; end if;
+                     if (fill_x_min_px < shadow_fillrect_x0_next) then shadow_fillrect_x0_next := fill_x_min_px; end if;
+                     if (fill_x_max_px > shadow_fillrect_x1_next) then shadow_fillrect_x1_next := fill_x_max_px; end if;
+                     if (fill_y_min_px < shadow_fillrect_y0_next) then shadow_fillrect_y0_next := fill_y_min_px; end if;
+                     if (fill_y_max_px > shadow_fillrect_y1_next) then shadow_fillrect_y1_next := fill_y_max_px; end if;
                   end if;
                   if (shadow_fillrect_next /= x"FFFF") then
                      shadow_fillrect_next := shadow_fillrect_next + 1;
@@ -907,10 +917,10 @@ begin
                   VI_SHADOW_FILLRECT_COUNT   <= shadow_fillrect_next;
                   VI_SHADOW_FILL_COLOR       <= shadow_fill_color_work;
                   VI_SHADOW_FILLRECT_VALID   <= shadow_fillrect_valid_next;
-                  VI_SHADOW_FILLRECT_X0      <= shadow_fillrect_x0_next(9 downto 0);
-                  VI_SHADOW_FILLRECT_X1      <= shadow_fillrect_x1_next(9 downto 0);
-                  VI_SHADOW_FILLRECT_Y0      <= shadow_fillrect_y0_next(8 downto 0);
-                  VI_SHADOW_FILLRECT_Y1      <= shadow_fillrect_y1_next(8 downto 0);
+                  VI_SHADOW_FILLRECT_X0      <= shadow_fillrect_x0_next;
+                  VI_SHADOW_FILLRECT_X1      <= shadow_fillrect_x1_next;
+                  VI_SHADOW_FILLRECT_Y0      <= shadow_fillrect_y0_next;
+                  VI_SHADOW_FILLRECT_Y1      <= shadow_fillrect_y1_next;
                   VI_SHADOW_FRAME_STROBE     <= '1';
                   shadow_frame_unsupported_work <= (others => '0');
                   shadow_frame_fillrect_work    <= (others => '0');

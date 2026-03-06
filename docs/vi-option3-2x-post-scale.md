@@ -127,6 +127,7 @@ Changes:
   - `VI_shadow_stub` module for shadow RGB generation (currently tint/checker)
   - RDP per-frame fill metadata (`fillrect_count`, `fill_color`) piped into shadow path
   - RDP per-frame fill bounds (`x0/x1/y0/y1`, valid bit) piped into shadow path
+  - fill bounds converted from RDP 10.2 fixed-point into VI pixel coordinates before masking
   - timing remains sourced from native VI output path
 
 Acceptance:
