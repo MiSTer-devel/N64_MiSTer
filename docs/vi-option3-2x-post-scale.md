@@ -185,6 +185,19 @@ Acceptance:
 - Fallback safety gate works reliably.
 - Framerate can be below real time for PoC milestones.
 
+## Per-ROM Onboarding Workflow (Current)
+1. Capture a simulation trace (`rdp_n64_sim.txt`) for a representative scene.
+2. Run trace analysis:
+   - `python3 tests/rdp_trace_replay.py /path/to/rdp_n64_sim.txt`
+3. Read recommendation:
+   - `fill_only` => use shadow mode `2'b01`
+   - `fill_copy` => use shadow mode `2'b10`
+   - `off` => do not opt in yet
+4. Compute ROM signature and emit case line:
+   - `tests/rom_signature.py /path/to/game.z64 --shadow-mode fill_only`
+5. Add entry to `profile_vi_shadow_mode(...)` in `N64.sv`.
+6. Run regression and hardware test with overlay enabled.
+
 ## Tracking Checklist
 - [x] Phase 1 complete
 - [x] Phase 2 complete
