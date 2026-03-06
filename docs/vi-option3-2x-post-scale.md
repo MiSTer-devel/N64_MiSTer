@@ -60,6 +60,7 @@ Changes:
   - `U` = last frame unsupported-command count
   - `Q` = last frame fill-rectangle command count
   - `T` = last frame texture-rectangle command count
+  - `X` = last frame texture-rectangle commands dropped by 4-slot shadow list
   - `V` = last frame fill-rectangle bounds-valid bit
   - `L` = last frame fill-rectangle commands dropped by 4-slot shadow list
   - `W` = consecutive output frames without shadow frame-strobe
@@ -141,6 +142,7 @@ Changes:
   - RDP per-frame texture-rectangle command count (`texrect_count`) piped into overlay telemetry
   - RDP per-frame aggregate texture-rectangle bounds are piped into the shadow path after scissor clipping
   - latest-four clipped texture rectangles are forwarded each frame for command-aware copy-region masking priority
+  - per-frame dropped counter reports clipped texrect commands that overflow the 4-slot list
   - RDP per-frame fill bounds (`x0/x1/y0/y1`, valid bit) piped into shadow path
   - fill bounds converted from RDP 10.2 fixed-point into VI pixel coordinates before masking
   - fill bounds are clipped against the active RDP scissor region before masking

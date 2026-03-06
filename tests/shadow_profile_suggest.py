@@ -48,6 +48,17 @@ def main() -> int:
         f"{trace_summary['frames_with_texrect']} frames"
     )
     print(
+        "Texrect shadow-slot overflow: "
+        f"limit={trace_summary['fillrect_shadow_slot_limit']} "
+        f"dropped={trace_summary['texrect_shadow_dropped_commands']} "
+        f"frames={trace_summary['frames_with_shadow_texrect_overflow']}"
+    )
+    print(
+        "Texrect overflow streak: "
+        f"max_consecutive={trace_summary['texrect_shadow_max_overflow_streak']} "
+        f"estimated_fallback_hits={trace_summary['texrect_shadow_overflow_fallback_frames']}"
+    )
+    print(
         "Shadow-usable fill commands (post-scissor): "
         f"{trace_summary['fillrect_shadow_commands']} across "
         f"{trace_summary['frames_with_shadow_fillrect']} frames "

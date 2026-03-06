@@ -104,6 +104,7 @@ Optional outputs:
 - Inspect copy-path activity:
   - replay summary reports texture-rectangle command count and frame coverage (`texrect_commands`, `frames_with_texrect`)
   - replay summary includes raw and post-scissor texrect bounds (`aggregate_texrect_bounds_px_raw`, `aggregate_texrect_bounds_px`)
+  - replay summary reports texrect shadow-slot overflow and streak metrics (`texrect_shadow_dropped_commands`, `frames_with_shadow_texrect_overflow`)
 - Inspect fill-rectangle region coverage (decoded to VI pixel bounds):
   - replay summary includes raw bounds (`aggregate_fillrect_bounds_px_raw`)
   - replay summary includes post-scissor bounds used by shadow metadata (`aggregate_fillrect_bounds_px`)
