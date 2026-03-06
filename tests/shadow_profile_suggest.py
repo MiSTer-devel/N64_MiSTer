@@ -37,6 +37,17 @@ def main() -> int:
         f"{recommendation['mode_name']} ({recommendation['mode_bits']})"
     )
     print(f"Reason: {recommendation['reason']}")
+    print(
+        "Fill-rectangle commands: "
+        f"{trace_summary['fillrect_commands']} across "
+        f"{trace_summary['frames_with_fillrect']} frames"
+    )
+    bounds = trace_summary["fillrect_bounds_px"]
+    if bounds is not None:
+        print(
+            "Aggregate fill bounds (VI pixels): "
+            f"x={bounds['x0']}..{bounds['x1']} y={bounds['y0']}..{bounds['y1']}"
+        )
     if args.override_mode is not None:
         print(f"Using override mode: {args.override_mode}")
     print("Case entry:")

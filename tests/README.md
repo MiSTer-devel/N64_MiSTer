@@ -75,6 +75,8 @@ To combine ROM signature + trace recommendation into one shadow case entry:
 python3 tests/shadow_profile_suggest.py /path/to/game.z64 /path/to/rdp_n64_sim.txt
 ```
 
+The suggestion output also includes aggregate fill-rectangle coverage in VI pixel coordinates.
+
 ## RDP Trace Replay Validator (Option #3)
 Use the replay validator to inspect simulation command traces emitted by `rtl/RDP.vhd`:
 
