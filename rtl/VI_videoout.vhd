@@ -241,7 +241,7 @@ architecture arch of VI_videoout is
 
    signal shadow_modechar       : unsigned(7 downto 0);
    signal shadow_enabled_nibble : unsigned(3 downto 0);
-   signal shadow_text           : unsigned(207 downto 0);
+   signal shadow_text           : unsigned(223 downto 0);
    signal overlay_shadow_data   : std_logic_vector(23 downto 0);
    signal overlay_shadow_ena    : std_logic;
 
@@ -777,7 +777,7 @@ begin
       textstring             => vi_exp_text
    );
 
-   ioverlayVIShadow : entity work.VI_overlay generic map (26, 14, 26, x"007070")
+   ioverlayVIShadow : entity work.VI_overlay generic map (28, 14, 26, x"007070")
    port map
    (
       clk                    => clkvid,
