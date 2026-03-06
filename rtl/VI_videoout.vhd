@@ -295,6 +295,7 @@ architecture arch of VI_videoout is
    signal shadow_fallback_count   : unsigned(7 downto 0) := (others => '0');
    signal shadow_fallback_reason  : unsigned(3 downto 0) := (others => '0');
    signal shadow_no_strobe_frames : unsigned(7 downto 0) := (others => '0');
+   signal shadow_unsupported_streak : unsigned(7 downto 0) := (others => '0');
    signal shadow_overflow_streak  : unsigned(7 downto 0) := (others => '0');
    
 begin 
@@ -403,12 +404,14 @@ begin
             shadow_fallback_count   <= (others => '0');
             shadow_fallback_reason  <= (others => '0');
             shadow_no_strobe_frames <= (others => '0');
+            shadow_unsupported_streak <= (others => '0');
             shadow_overflow_streak  <= (others => '0');
          else
             if (VI_SHADOW_ENABLE = '0' or (VI_SHADOW_MODE /= "01" and VI_SHADOW_MODE /= "10")) then
                -- Manual disable/mode switch clears sticky fallback latch.
                shadow_fallback_reason <= (others => '0');
                shadow_no_strobe_frames <= (others => '0');
+               shadow_unsupported_streak <= (others => '0');
                shadow_overflow_streak <= (others => '0');
             elsif (shadow_guard_unsupported = '1' and shadow_fallback_reason = x"0") then
                if (shadow_fallback_count /= x"FF") then
@@ -425,6 +428,19 @@ begin
             if (VI_SHADOW_ENABLE = '1' and (VI_SHADOW_MODE = "01" or VI_SHADOW_MODE = "10")) then
                if (VI_SHADOW_FRAME_STROBE = '1') then
                   shadow_no_strobe_frames <= (others => '0');
+                  if (VI_SHADOW_UNSUPPORTED_CMDS /= 0) then
+                     if (shadow_unsupported_streak /= x"FF") then
+                        shadow_unsupported_streak <= shadow_unsupported_streak + 1;
+                     end if;
+                     if (shadow_fallback_reason = x"0" and shadow_unsupported_streak >= x"07") then
+                        if (shadow_fallback_count /= x"FF") then
+                           shadow_fallback_count <= shadow_fallback_count + 1;
+                        end if;
+                        shadow_fallback_reason <= x"3";
+                     end if;
+                  else
+                     shadow_unsupported_streak <= (others => '0');
+                  end if;
                   if (VI_SHADOW_FILLRECT_DROPPED /= 0) then
                      if (shadow_overflow_streak /= x"FF") then
                         shadow_overflow_streak <= shadow_overflow_streak + 1;
@@ -463,13 +479,6 @@ begin
                shadow_last_fillrect_count <= VI_SHADOW_FILLRECT_COUNT;
                shadow_last_fillrect_valid <= VI_SHADOW_FILLRECT_VALID;
                shadow_last_fillrect_dropped <= VI_SHADOW_FILLRECT_DROPPED;
-
-               if (shadow_fallback_reason = x"0") then
-                  if (shadow_fallback_count /= x"FF") then
-                     shadow_fallback_count <= shadow_fallback_count + 1;
-                  end if;
-                  shadow_fallback_reason <= x"3";
-               end if;
             elsif (VI_SHADOW_FRAME_STROBE = '1' and VI_SHADOW_ENABLE = '1' and (VI_SHADOW_MODE = "01" or VI_SHADOW_MODE = "10")) then
                shadow_last_unsupported <= VI_SHADOW_UNSUPPORTED_CMDS;
                shadow_last_fillrect_count <= VI_SHADOW_FILLRECT_COUNT;

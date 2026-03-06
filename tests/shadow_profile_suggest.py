@@ -59,6 +59,14 @@ def main() -> int:
         f"max_consecutive={trace_summary['fillrect_shadow_max_overflow_streak']} "
         f"fallback_hits={trace_summary['fillrect_shadow_overflow_fallback_frames']}"
     )
+    if recommendation["mode_name"] in trace_summary["subset_compatibility"]:
+        compat = trace_summary["subset_compatibility"][recommendation["mode_name"]]
+        print(
+            "Unsupported-command streaks (recommended mode): "
+            f"max_consecutive={compat['max_unsupported_streak']} "
+            f"fallback_hits={compat['unsupported_fallback_frames']} "
+            f"(limit={trace_summary['shadow_unsupported_streak_limit']})"
+        )
     bounds_raw = trace_summary["fillrect_bounds_px_raw"]
     if bounds_raw is not None:
         print(

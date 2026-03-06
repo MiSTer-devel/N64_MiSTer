@@ -65,7 +65,7 @@ Changes:
 - Fallback reason encoding (current PoC):
   - `1`: unsupported VI mode (`VI_CTRL_TYPE=0` or zero width)
   - `2`: VI processing error (`error_linefetch`/`error_outProcess`)
-  - `3`: frame uses RDP commands outside current shadow subset
+  - `3`: persistent unsupported-command streak (unsupported commands seen for 8 consecutive shadow frames)
   - `4`: shadow frame-strobe watchdog timeout (no strobe observed for 8 consecutive output frames)
   - `5`: persistent fillrect-list overflow (dropped fill commands for 8 consecutive shadow frames with 4-slot list)
 - Shadow subset mode mapping (current PoC):

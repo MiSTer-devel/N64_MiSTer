@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from statistics import mean
 from typing import Iterable
@@ -110,9 +110,11 @@ class FrameState:
     fillrect_shadow_x1: int | None = None
     fillrect_shadow_y0: int | None = None
     fillrect_shadow_y1: int | None = None
+    opcode_hist: dict[int, int] = field(default_factory=dict)
 
 
 SHADOW_FILLRECT_SLOT_LIMIT = 4
+SHADOW_UNSUPPORTED_STREAK_LIMIT = 8
 
 
 def _opcode_from_command(data64: int) -> int:
@@ -281,6 +283,7 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
 
                 opcode = _opcode_from_command(data64)
                 opcode_hist[opcode] = opcode_hist.get(opcode, 0) + 1
+                state.opcode_hist[opcode] = state.opcode_hist.get(opcode, 0) + 1
                 if opcode == 0x2D:
                     scissor_current = _scissor_bounds_px(data64)
                 if opcode == 0x36:
@@ -360,11 +363,41 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
     if allowed_opcodes is not None:
         subset_frames_clean = len(frame_ids) - len(subset_violation_frames)
     subset_compatibility = {}
+    subset_unsupported_streaks: dict[str, dict] = {}
     for subset_name in sorted(SUBSETS.keys()):
         unsupported = _unsupported_for_subset(opcode_hist, subset_name)
+        allowed_for_subset = SUBSETS[subset_name]
+        unsupported_streak = 0
+        max_unsupported_streak = 0
+        frames_with_unsupported: set[int] = set()
+        unsupported_fallback_trigger_frames: set[int] = set()
+        for fid in frame_ids:
+            frame_unsupported = 0
+            for opcode, count in frames[fid].opcode_hist.items():
+                if opcode not in allowed_for_subset:
+                    frame_unsupported += count
+            if frame_unsupported != 0:
+                frames_with_unsupported.add(fid)
+                unsupported_streak += 1
+                if unsupported_streak > max_unsupported_streak:
+                    max_unsupported_streak = unsupported_streak
+                if unsupported_streak >= SHADOW_UNSUPPORTED_STREAK_LIMIT:
+                    unsupported_fallback_trigger_frames.add(fid)
+            else:
+                unsupported_streak = 0
+        subset_unsupported_streaks[subset_name] = {
+            "frames_with_unsupported": len(frames_with_unsupported),
+            "max_unsupported_streak": max_unsupported_streak,
+            "unsupported_fallback_frames": len(unsupported_fallback_trigger_frames),
+            "sample_frames_with_unsupported": _first_n_sorted(frames_with_unsupported, limit=16),
+            "sample_frames_with_unsupported_fallback": _first_n_sorted(
+                unsupported_fallback_trigger_frames, limit=16
+            ),
+        }
         subset_compatibility[subset_name] = {
             "unsupported_commands": unsupported,
             "supported": unsupported == 0,
+            **subset_unsupported_streaks[subset_name],
         }
     recommended_shadow_mode = _recommend_shadow_mode(opcode_hist, total_commands)
     overflow_streak = 0
@@ -396,6 +429,7 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
         "fillrect_shadow_commands": fillrect_shadow_commands,
         "fillrect_shadow_clipped_out_commands": fillrect_shadow_clipped_out_commands,
         "fillrect_shadow_slot_limit": SHADOW_FILLRECT_SLOT_LIMIT,
+        "shadow_unsupported_streak_limit": SHADOW_UNSUPPORTED_STREAK_LIMIT,
         "fillrect_shadow_dropped_commands": fillrect_shadow_dropped_commands,
         "frames_with_fillrect": len(fillrect_frames),
         "frames_with_shadow_fillrect": len(fillrect_shadow_frames),
@@ -437,6 +471,7 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
         },
         "opcode_histogram": _sorted_histogram_items(opcode_hist),
         "subset_compatibility": subset_compatibility,
+        "subset_unsupported_streaks": subset_unsupported_streaks,
         "recommended_shadow_mode": recommended_shadow_mode,
         "subset_analysis": (
             {
@@ -454,6 +489,19 @@ def parse_trace(path: Path, dump_frame: int | None = None, subset: str | None = 
                 "frames_clean": subset_frames_clean,
                 "frames_with_unsupported": len(subset_violation_frames),
                 "sample_frames_with_unsupported": _first_n_sorted(subset_violation_frames, limit=16),
+                "max_unsupported_streak": (
+                    subset_unsupported_streaks[subset]["max_unsupported_streak"] if subset in subset_unsupported_streaks else 0
+                ),
+                "unsupported_fallback_frames": (
+                    subset_unsupported_streaks[subset]["unsupported_fallback_frames"]
+                    if subset in subset_unsupported_streaks
+                    else 0
+                ),
+                "sample_frames_with_unsupported_fallback": (
+                    subset_unsupported_streaks[subset]["sample_frames_with_unsupported_fallback"]
+                    if subset in subset_unsupported_streaks
+                    else []
+                ),
             }
             if allowed_opcodes is not None
             else None
@@ -625,7 +673,9 @@ def main() -> int:
         print(
             f"    {subset_name}: "
             f"unsupported_commands={compat['unsupported_commands']} "
-            f"supported={compat['supported']}"
+            f"supported={compat['supported']} "
+            f"max_unsupported_streak={compat['max_unsupported_streak']} "
+            f"unsupported_fallback_frames={compat['unsupported_fallback_frames']}"
         )
 
     if subset_analysis is not None:
@@ -636,10 +686,21 @@ def main() -> int:
             f"{subset_analysis['frames_clean']}/{subset_analysis['frames_total']}"
         )
         print(f"  frames_with_unsupported: {subset_analysis['frames_with_unsupported']}")
+        print(
+            "  unsupported streaks: "
+            f"max_consecutive={subset_analysis['max_unsupported_streak']} "
+            f"fallback_frame_hits={subset_analysis['unsupported_fallback_frames']} "
+            f"(limit={summary['shadow_unsupported_streak_limit']})"
+        )
         if subset_analysis["sample_frames_with_unsupported"]:
             print(
                 "  sample_frames_with_unsupported: "
                 + ", ".join(str(fid) for fid in subset_analysis["sample_frames_with_unsupported"])
+            )
+        if subset_analysis["sample_frames_with_unsupported_fallback"]:
+            print(
+                "  sample_frames_with_unsupported_fallback: "
+                + ", ".join(str(fid) for fid in subset_analysis["sample_frames_with_unsupported_fallback"])
             )
 
     if args.dump_frame is not None:

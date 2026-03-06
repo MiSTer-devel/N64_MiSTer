@@ -106,3 +106,4 @@ Optional outputs:
   - replay summary includes post-scissor bounds used by shadow metadata (`aggregate_fillrect_bounds_px`)
   - replay summary reports shadow slot overflow (`dropped_commands`, `frames_with_overflow`) for the current 4-slot PoC path
   - replay summary reports max consecutive overflow streak and fallback-hit frames (matching runtime overflow watchdog behavior)
+  - replay summary reports per-subset unsupported-command streaks and estimated fallback-hit frames (8-frame threshold, matching runtime reason-3 fallback)
