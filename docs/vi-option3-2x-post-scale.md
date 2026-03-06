@@ -62,6 +62,7 @@ Changes:
   - `V` = last frame fill-rectangle bounds-valid bit
   - `L` = last frame fill-rectangle commands dropped by 4-slot shadow list
   - `W` = consecutive output frames without shadow frame-strobe
+  - `S` = consecutive shadow frames with unsupported commands
 - Fallback reason encoding (current PoC):
   - `1`: unsupported VI mode (`VI_CTRL_TYPE=0` or zero width)
   - `2`: VI processing error (`error_linefetch`/`error_outProcess`)
