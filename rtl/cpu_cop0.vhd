@@ -7,6 +7,12 @@ library mem;
 use work.pexport.all;
 
 entity cpu_cop0 is
+   generic
+   (
+      COUNTHACK_ON            : std_logic := '1'; -- counthack
+      COUNTHACK_CLK1          : integer := 3;     -- clk ratio -> CLK2/CLK1 = x/93.75
+      COUNTHACK_CLK2          : integer := 4
+   );
    port 
    (
       clk93                   : in  std_logic;
@@ -124,6 +130,9 @@ architecture arch of cpu_cop0 is
    signal COP0_5_PAGEMASK                 : unsigned(11 downto 0) := (others => '0');
    signal COP0_6_WIRED                    : unsigned(5 downto 0)  := (others => '0');
    signal COP0_8_BADVIRTUALADDRESS        : unsigned(63 downto 0) := (others => '0');
+
+   signal COUNTHACK_cnt                   : unsigned(15 downto 0) := (others => '0');
+	
    signal COP0_9_COUNT                    : unsigned(32 downto 0) := (others => '0');
    signal COP0_10_ENTRYHI_addressSpaceID  : unsigned(7 downto 0) := (others => '0'); 
    signal COP0_10_ENTRYHI_virtualAddress  : unsigned(26 downto 0) := (others => '0'); 
@@ -613,7 +622,18 @@ begin
 
             -- count
             if (cop0Written9 = 0) then
-               COP0_9_COUNT <= COP0_9_COUNT + 1;
+			
+               if (COUNTHACK_ON = '1') then
+                  if (COUNTHACK_cnt >= COUNTHACK_CLK2) then
+                     COUNTHACK_cnt <= COUNTHACK_cnt + COUNTHACK_CLK1 - COUNTHACK_CLK2;
+                     COP0_9_COUNT  <= COP0_9_COUNT + 1;
+                  else
+                     COUNTHACK_cnt <= COUNTHACK_cnt + COUNTHACK_CLK1;
+                  end if;
+               else
+                  COP0_9_COUNT <= COP0_9_COUNT + 1;
+               end if;
+					
                if (COP0_9_COUNT(32 downto 1) = COP0_11_COMPARE) then
                   COP0_13_CAUSE_interruptPending(7) <= '1';
                end if;
