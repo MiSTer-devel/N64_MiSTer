@@ -12,7 +12,7 @@ entity Gamepad is
       
       second_ena           : in  std_logic;
      
-      PADTYPE              : in  std_logic_vector(2 downto 0); -- 000 = normal, 001 = empty, 010 = cpak, 011 = rumble, 100 = snac, 101 = transfer pak
+      PADTYPE              : in  std_logic_vector(2 downto 0); -- 000 = normal, 001 = empty, 010 = cpak, 011 = rumble, 100 = snac, 101 = transfer pak, 110 = keyboard
       padIndex             : in  unsigned(1 downto 0);
       MOUSETYPE            : in  std_logic_vector(2 downto 0); -- 00 - mouse off, 001 : ABZ, 010: ZAB, 011: ZBA
       PADDPADSWAP          : in  std_logic;
@@ -59,6 +59,18 @@ entity Gamepad is
       MouseMiddle          : in  std_logic;
       MouseX               : in  signed(8 downto 0);
       MouseY               : in  signed(8 downto 0);
+
+      -- Keyboard inputs (RandNet keyboard)
+      -- Supports up to 3 simultaneous key presses
+      -- Each key is represented by 16 bits (2 bytes) - X/Y matrix position
+      keyboard_key1        : in  std_logic_vector(15 downto 0); -- First key pressed (0x0000 if none)
+      keyboard_key2        : in  std_logic_vector(15 downto 0); -- Second key pressed (0x0000 if none)
+      keyboard_key3        : in  std_logic_vector(15 downto 0); -- Third key pressed (0x0000 if none)
+      keyboard_status      : in  std_logic_vector(7 downto 0);  -- Keyboard Status, Error and Home Key
+      -- Keyboard LED outputs
+      keyboard_led_power   : out std_logic := '0';  -- Power LED (controlled by bit 2 of command 0x13 parameter)
+      keyboard_led_caps    : out std_logic := '0';  -- Caps Lock LED (controlled by bit 1)
+      keyboard_led_num     : out std_logic := '0';  -- Num Lock LED (controlled by bit 0)
       
       rumble               : out std_logic_vector(3 downto 0) := (others => '0');
       
@@ -93,6 +105,15 @@ architecture arch of Gamepad is
       RESPONSEPAD1,
       RESPONSEPAD2,
       RESPONSEPAD3,
+      
+      RESPONSEKEYBOARD0,
+      RESPONSEKEYBOARD1,
+      RESPONSEKEYBOARD2,
+      RESPONSEKEYBOARD3,
+      RESPONSEKEYBOARD4,
+      RESPONSEKEYBOARD5,
+      RESPONSEKEYBOARD6,
+      RESPONSEKEYBOARD7,
       
       PAK_READADDR1,
       PAK_READADDR2,
@@ -135,6 +156,8 @@ architecture arch of Gamepad is
                                    
    signal pad_muxed_analogH         : std_logic_vector(7 downto 0);
    signal pad_muxed_analogV         : std_logic_vector(7 downto 0);
+   
+   signal keyboard_led_control      : std_logic_vector(7 downto 0) := (others => '0');
    
    -- PAKs
    signal pakwrite                  : std_logic;
@@ -195,6 +218,11 @@ begin
    pad_muxed_C_DOWN     <= pad_C_DOWN(to_integer(padIndex)); 
    pad_muxed_C_LEFT     <= pad_C_LEFT(to_integer(padIndex)); 
    pad_muxed_C_RIGHT    <= pad_C_RIGHT(to_integer(padIndex));
+   
+   -- Keyboard LED outputs
+   keyboard_led_power   <= keyboard_led_control(2);
+   keyboard_led_caps    <= keyboard_led_control(1);
+   keyboard_led_num     <= keyboard_led_control(0);
    
    process (all)
    begin
@@ -299,6 +327,8 @@ begin
                         else
                            pakwrite  <= '1';
                         end if;
+                     elsif (toPad_data = x"13") then  -- Keyboard poll command
+                        stateNext <= RESPONSEKEYBOARD0;
                      else
                         toPIF_timeout <= '1';
                         stateNext     <= IDLE;
@@ -322,8 +352,11 @@ begin
                   end if;
                   toPIF_ena  <= '1';
                end if;
-               
-               toPIF_data <= x"05";
+               if (PADTYPE = "110") then
+                  toPIF_data <= x"00"; -- Keyboard type (0x00 0x02 0x00)
+               else
+                  toPIF_data <= x"05";
+               end if;
             
             when RESPONSETYPE1 =>   
                if (slowNextByteEna = '1') then
@@ -335,7 +368,11 @@ begin
                   toPIF_ena  <= '1';
                end if;
                
-               toPIF_data <= x"00";
+               if (PADTYPE = "110") then
+                  toPIF_data <= x"02"; -- Keyboard type (0x00 0x02 0x00)
+               else
+                  toPIF_data <= x"00";
+               end if;
             
             when RESPONSETYPE2 => 
                if (slowNextByteEna = '1') then
@@ -350,8 +387,77 @@ begin
                
                if (PADTYPE = "010" or PADTYPE = "011" or PADTYPE = "101") then -- cpak or rpak or tpak
                   toPIF_data <= x"01";
+               elsif (PADTYPE = "110") then
+                  toPIF_data <= x"00"; -- Keyboard type (0x00 0x02 0x00)
                else
                   toPIF_data <= x"02";
+               end if;
+----------------------------- Keyboard Poll Response (0x13) -----------------------------
+            
+            when RESPONSEKEYBOARD0 =>
+               if (toPad_ena = '1') then
+                  -- Capture the LED control parameter byte
+                  keyboard_led_control <= toPad_data;
+                  state      <= WAITSLOW;
+                  toPad_ready <= '0';
+                  stateNext  <= RESPONSEKEYBOARD1;
+                  sendcount  <= sendcount - 1;
+               end if;
+               
+            when RESPONSEKEYBOARD1 =>
+               if (slowNextByteEna = '1') then
+                   toPIF_ena  <= '1';
+                   toPIF_data <= keyboard_key1(15 downto 8); -- Key 1 high byte
+                   state      <= WAITSLOW;
+                   stateNext  <= RESPONSEKEYBOARD2;
+               end if;
+               
+            when RESPONSEKEYBOARD2 =>
+               if (slowNextByteEna = '1') then
+                  toPIF_ena  <= '1';
+                  toPIF_data <= keyboard_key1(7 downto 0); -- Key 1 low byte
+                  state      <= WAITSLOW;
+                  stateNext  <= RESPONSEKEYBOARD3;
+               end if;
+               
+            when RESPONSEKEYBOARD3 =>
+               if (slowNextByteEna = '1') then
+                  toPIF_ena  <= '1';
+                  toPIF_data <= keyboard_key2(15 downto 8); -- Key 2 high byte
+                  state      <= WAITSLOW;
+                  stateNext  <= RESPONSEKEYBOARD4;
+               end if;
+               
+            when RESPONSEKEYBOARD4 =>
+               if (slowNextByteEna = '1') then
+                  toPIF_ena  <= '1';
+                  toPIF_data <= keyboard_key2(7 downto 0); -- Key 2 low byte
+                  state      <= WAITSLOW;
+                  stateNext  <= RESPONSEKEYBOARD5;
+               end if;
+               
+            when RESPONSEKEYBOARD5 =>
+               if (slowNextByteEna = '1') then
+                  toPIF_ena  <= '1';
+                  toPIF_data <= keyboard_key3(15 downto 8); -- Key 3 high byte
+                  state      <= WAITSLOW;
+                  stateNext  <= RESPONSEKEYBOARD6;
+               end if;
+               
+            when RESPONSEKEYBOARD6 =>
+               if (slowNextByteEna = '1') then
+                  toPIF_ena  <= '1';
+                  toPIF_data <= keyboard_key3(7 downto 0); -- Key 3 low byte
+                  state      <= WAITSLOW;
+                  stateNext  <= RESPONSEKEYBOARD7;
+               end if;
+               
+            when RESPONSEKEYBOARD7 =>
+               if (slowNextByteEna = '1') then
+                  toPIF_ena  <= '1';
+                  -- Status byte: bit 4 = error (4+ keys pressed), bit 0 = Home Key
+                  toPIF_data <= keyboard_status;
+                  state      <= IDLE;
                end if;
             
 ----------------------------- pad buttons/axis -------------------------------
@@ -712,6 +818,7 @@ begin
          if (reset = '1') then
             state  <= IDLE;
             rumble <= (others => '0');
+            keyboard_led_control <= (others => '0');
          end if;
          
       end if; -- clock

@@ -137,6 +137,9 @@ entity n64top is
       MouseX                  : in  signed(8 downto 0);
       MouseY                  : in  signed(8 downto 0);
 
+      KeyboardPS2Key          : in  std_logic_vector(10 downto 0);
+      KeyBoardLED             : out std_logic_vector(2 downto 0) := (others => '0');
+
       --snac
       PIFCOMPARE              : in  std_logic;
       snac                    : out std_logic;
@@ -443,6 +446,14 @@ architecture arch of n64top is
    signal toPIF_timeoutUSB        : std_logic;          
    signal toPIF_enaUSB            : std_logic;   
    signal toPIF_dataUSB           : std_logic_vector(7 downto 0);  
+
+   signal keyboard_key1           : std_logic_vector(15 downto 0);
+   signal keyboard_key2           : std_logic_vector(15 downto 0);
+   signal keyboard_key3           : std_logic_vector(15 downto 0);
+   signal keyboard_status         : std_logic_vector(7 downto 0);
+   signal keyboard_led_power      : std_logic;
+   signal keyboard_led_caps       : std_logic;
+   signal keyboard_led_num        : std_logic;
    
    -- SI/PIF
    signal SIPIF_ramreq           : std_logic;
@@ -1297,6 +1308,14 @@ begin
       MouseMiddle          => MouseMiddle,
       MouseX               => MouseX,    
       MouseY               => MouseY,         
+
+      keyboard_key1        => keyboard_key1,
+      keyboard_key2        => keyboard_key2,
+      keyboard_key3        => keyboard_key3,
+      keyboard_status      => keyboard_status,
+      keyboard_led_power   => keyboard_led_power,
+      keyboard_led_caps    => keyboard_led_caps,
+      keyboard_led_num     => keyboard_led_num,
       
       cpak_change          => cpak_change,
       tpak_change          => tpak_change,
@@ -1310,6 +1329,20 @@ begin
       sdram_done           => sdramMux_done(SDRAMMUX_PIF),      
       sdram_dataRead       => sdramMux_dataRead
    );
+	
+   ikeyboard_scanner : entity work.keyboard_scanner
+   port map (
+      clk            => clk1x,
+      reset          => reset,
+      ps2_key        => KeyboardPS2Key,
+      key1_pos       => keyboard_key1,
+      key2_pos       => keyboard_key2,
+      key3_pos       => keyboard_key3,
+      kb_status      => keyboard_status
+   );
+
+   KeyBoardLED(1) <= keyboard_led_num;
+   KeyBoardLED(0) <= keyboard_led_caps;
 
    rdram_writeMask(DDR3MUX_VI) <= (others => '-');
    rdram_dataWrite(DDR3MUX_VI) <= (others => '-');
