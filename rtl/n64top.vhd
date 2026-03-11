@@ -20,6 +20,7 @@ entity n64top is
       clk2x                   : in  std_logic;
       clkvid                  : in  std_logic;
       reset                   : in  std_logic;
+      softreset               : in  std_logic;
       pause                   : in  std_logic;
       errorCodesOn            : in  std_logic;
       fpscountOn              : in  std_logic;
@@ -198,6 +199,8 @@ architecture arch of n64top is
    -- reset and clocks
    signal reset_intern_1x        : std_logic := '0';
    signal reset_intern_93        : std_logic := '0';
+   signal cpu_PRENMI             : std_logic := '0';
+   signal PIF_Softreset          : std_logic := '0';
    
    signal ce_1x                  : std_logic := '0';
    signal ce_93                  : std_logic := '0';
@@ -1170,6 +1173,7 @@ begin
       clk1x                => clk1x,        
       ce                   => ce_1x,           
       reset                => reset_intern_1x,   
+      softreset            => PIF_Softreset,
       
       second_ena           => second_ena,
 
@@ -1553,6 +1557,7 @@ begin
       ce_93                => ce_93,   
       reset_1x             => reset_intern_1x,
       reset_93             => reset_intern_93,
+      preNMI               => cpu_PRENMI,
       
       INSTRCACHEON         => INSTRCACHEON,
       DATACACHEON          => DATACACHEON,
@@ -1618,10 +1623,13 @@ begin
       clk1x                   => clk1x,
       clk93                   => clk93,
       reset_in                => reset,
+      softreset               => softreset,
       reset_out_1x            => reset_intern_1x,
       reset_out_93            => reset_intern_93,
       ss_reset_1x             => ss_reset_1x,
       ss_reset_93             => ss_reset_93,
+      cpu_PRENMI              => cpu_PRENMI,
+      PIF_Softreset           => PIF_Softreset,
       
       RAMSIZE8                => RAMSIZE8,
       
@@ -1742,6 +1750,7 @@ begin
       clk               => clk93,
       ce                => ce_93,
       reset             => reset_intern_93,
+      preNMI            => cpu_PRENMI,
          
       new_export        => cpu_done,
       export_cpu        => cpu_export

@@ -381,7 +381,7 @@ parameter CONF_STR = {
    "-;",
    
 	"R0,Reset;",
-   "J1,A,B,Start,L,R,Z,C Up,C Right,C Down,C Left;",
+   "J1,A,B,Start,L,R,Z,C Up,C Right,C Down,C Left,Softreset;",
 	"jn,A,B,Start,L,R,Z,C Up,C Right,C Down,C Left;",
 	"I,",
 	"Load=DPAD Up|Save=Down|Slot=L+R,",
@@ -733,6 +733,7 @@ n64top
    //.clk2x(clk_1x),          
    .clkvid(clk_vid),
    .reset(reset_or),
+   .softreset(joy[14]),
    .pause(OSD_STATUS),
    .errorCodesOn(status[2]),
    .fpscountOn(status[28]),

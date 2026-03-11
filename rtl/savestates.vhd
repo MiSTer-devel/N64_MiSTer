@@ -13,10 +13,13 @@ entity savestates is
       clk1x                   : in  std_logic;  
       clk93                   : in  std_logic;  
       reset_in                : in  std_logic;
+      softreset               : in  std_logic;
       reset_out_1x            : out std_logic := '0';
       reset_out_93            : out std_logic := '0';
       ss_reset_1x             : out std_logic := '0';
       ss_reset_93             : out std_logic := '0';
+      cpu_PRENMI              : out std_logic := '0';
+      PIF_Softreset           : out std_logic := '0';
          
       RAMSIZE8                : in  std_logic;
          
@@ -101,6 +104,8 @@ architecture arch of savestates is
       ROMCOPY_REQUEST,
       ROMCOPY_READ,
       
+      SOFTRESET_START,
+      
       WAITPAUSE,
       WAITIDLE,
       SAVE_WAITSETTLE,
@@ -144,11 +149,17 @@ architecture arch of savestates is
    signal loading_ss          : std_logic := '0';
    
    signal reset_in_1          : std_logic := '0';
+   signal softreset_1         : std_logic := '0';
    signal reset_intern        : std_logic := '0';
+   signal reset_internCPU     : std_logic := '0';
+   signal ss_reset_1xCPU      : std_logic := '0';
+   signal cpu_PRENMI_1x       : std_logic := '0';
    
    signal rdram_address_safe  : unsigned(27 downto 0):= (others => '0');
    
    signal romcopy_latched     : std_logic := '0';
+
+   signal softreset_wait      : unsigned(25 downto 0) := (others => '0');
 
 begin 
 
@@ -162,11 +173,12 @@ begin
    process (clk93)
    begin
       if rising_edge(clk93) then
-         reset_out_93    <= reset_intern;
-         ss_reset_93     <= ss_reset_1x;
+         reset_out_93    <= reset_intern or reset_internCPU;
+         ss_reset_93     <= ss_reset_1x or ss_reset_1xCPU;
          SS_DataWrite_93 <= SS_DataWrite;
          SS_Adr_93       <= SS_Adr;      
-         SS_wren_93      <= SS_wren;     
+         SS_wren_93      <= SS_wren;  
+         cpu_PRENMI      <= cpu_PRENMI_1x;
       end if;
    end process;
 
@@ -174,9 +186,13 @@ begin
    begin
       if rising_edge(clk1x) then
       
-         reset_intern  <= '0';
-         ss_reset_1x   <= '0';
-         rdram_request <= '0';
+         reset_intern     <= '0';
+         reset_internCPU  <= '0';
+         ss_reset_1x      <= '0';
+         ss_reset_1xCPU   <= '0';
+         rdram_request    <= '0';
+         cpu_PRENMI_1x    <= '0';
+         PIF_Softreset    <= '0';
          
          reset_out_1x <= reset_intern;
          
@@ -211,6 +227,8 @@ begin
          if (romcopy_start = '1') then
             romcopy_latched <= '1';
          end if;
+         
+         softreset_wait <= softreset_wait + 1;
          
          case state is
          
@@ -251,6 +269,9 @@ begin
                   savemode             <= '0';
                   savetype_counter     <= 0;
                   settle               <= 0;
+               elsif (softreset = '1' and softreset_1 = '0') then
+                  state                <= SOFTRESET_START;
+                  softreset_wait       <= (others => '0');
                end if;
                
 -- #########################################################
@@ -274,6 +295,22 @@ begin
                   RAMAddrNext <= RAMAddrNext + 1;
                end if;
             
+-- #########################################################    
+
+            when SOFTRESET_START =>
+               if (softreset_wait = 60) then 
+                  cpu_PRENMI_1x <= '1';
+               end if;
+               if ((FASTSIM = '1' and softreset_wait = 10000) or (FASTSIM = '0' and softreset_wait = 31250000)) then 
+                  ss_reset_1xCPU       <= '1';
+                  savestate_pause      <= '1';
+               end if;
+               if ((FASTSIM = '1' and softreset_wait = 20000) or (FASTSIM = '0' and softreset_wait = 31260000)) then
+                  state                <= IDLE;
+                  reset_internCPU      <= '1';
+                  PIF_Softreset        <= '1';
+               end if;
+        
 -- #########################################################            
             
             when WAITPAUSE =>
@@ -613,7 +650,8 @@ begin
          
          end case;
          
-         reset_in_1 <= reset_in;
+         reset_in_1  <= reset_in;
+         softreset_1 <= softreset;
          if (reset_in = '1' and reset_in_1 = '0') then
             if (state /= ROMCOPY_REQUEST and state /= ROMCOPY_READ) then
                state    <= IDLE;

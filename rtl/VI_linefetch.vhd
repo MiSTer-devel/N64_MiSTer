@@ -76,6 +76,7 @@ architecture arch of VI_linefetch is
    signal ram_offset       : signed(24 downto 0) := (others => '0');
    signal rdram_finished   : std_logic := '0';
    signal rdram9_finished  : std_logic := '0';
+   signal addressExtraAdv  : std_logic := '0';
 
    signal lineInPtr        : std_logic_vector(2 downto 0) := (others => '0');
    signal lineInFetched    : unsigned(2 downto 0) := (others => '0');   
@@ -171,9 +172,13 @@ begin
                   if (fetch = '1') then
                      y_accu <= y_accu_new; 
                      if (y_diff > 0) then
-                        state <= REQUESTLINE;
+                        state           <= REQUESTLINE;
+                        addressExtraAdv <= '0';
                         if (y_diff > 1 or (VI_DIRECTFBMODE = '1' and video_blockVIFB = '0' and VI_CTRL_SERRATE = '1' and VI_Y_SCALE_FACTOR <= 16#400#)) then
                            lineProcCnt <= '1';
+                           if (y_diff > 2 and VI_DIRECTFBMODE = '0') then
+                              addressExtraAdv <= '1';
+                           end if;
                         end if;
                      else
                         out_wait <= 15;
@@ -224,6 +229,9 @@ begin
                         else
                            out_wait <= 15;
                            state    <= WAITOUT;
+                           if (addressExtraAdv = '1') then
+                              ram_offset      <= ram_offset + to_integer(lineWidth);
+                           end if;
                         end if;
                      else
                         state <= REQUESTLINE;

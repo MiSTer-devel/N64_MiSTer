@@ -15,6 +15,7 @@ entity cpu_cop0 is
       stall4Masked            : in  unsigned(4 downto 0);
       executeNew              : in  std_logic;
       reset                   : in  std_logic;
+      preNMI                  : in  std_logic;
       
       RANDOMMISS              : in  unsigned(3 downto 0);
       DISABLE_BOOTCOUNT       : in  std_logic;
@@ -610,6 +611,9 @@ begin
          
             -- interrupt
             COP0_13_CAUSE_interruptPending(2) <= irqRequest;
+            if (preNMI = '1') then
+               COP0_13_CAUSE_interruptPending(4) <= preNMI;
+            end if;
 
             -- count
             if (cop0Written9 = 0) then

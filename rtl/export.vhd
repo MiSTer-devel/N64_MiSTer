@@ -57,6 +57,7 @@ entity export is
       clk               : in std_logic;
       ce                : in std_logic;
       reset             : in std_logic;
+      preNMI            : in std_logic;
          
       new_export        : in std_logic;
       export_cpu        : in cpu_export_type   
@@ -66,13 +67,13 @@ entity export is
 end entity;
 
 architecture arch of export is
+
+   signal ignoreReset            : std_logic := '0';
      
    signal newticks               : unsigned(11 downto 0) := (others => '0');
    signal totalticks             : unsigned(31 downto 0) := (others => '0');
    signal cyclenr                : unsigned(31 downto 0) := x"00000001";
                   
-   signal reset_1                : std_logic := '0';
-   signal export_reset           : std_logic := '0';
    signal exportnow              : std_logic;
             
    signal export_cpu_last        : cpu_export_type := export_init;   
@@ -129,7 +130,7 @@ begin
    process(clk)
    begin
       if rising_edge(clk) then
-         if (reset = '1') then
+         if (reset = '1' and ignoreReset = '0') then
             totalticks <= (others => '0');
             newticks   <= (others => '0');
          elsif (ce = '1') then
@@ -139,11 +140,13 @@ begin
                newticks   <= x"001";
             end if;
          end if;
-         reset_1 <= reset;
+         
+         if (preNMI = '1') then
+            ignoreReset <= '1';
+         end if;
+         
       end if;
    end process;
-   
-   export_reset <= '1' when (reset = '0' and reset_1 = '1') else '0';
    
    exportnow <=  new_export;
 
@@ -168,7 +171,7 @@ begin
       
       while (true) loop
          wait until rising_edge(clk);
-         if (reset = '1') then
+         if (reset = '1' and ignoreReset = '0') then
             cyclenr <= x"00000001";
             filename_current := filenamebase & "00000000.txt";
             file_close(outfile);

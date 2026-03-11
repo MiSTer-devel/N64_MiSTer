@@ -11,6 +11,7 @@ entity pif is
       clk1x                : in  std_logic;
       ce                   : in  std_logic;
       reset                : in  std_logic;
+      softreset            : in  std_logic;
       
       second_ena           : in  std_logic;
       
@@ -102,6 +103,7 @@ architecture arch of pif is
    signal cic_seed         : std_logic_vector(7 downto 0);
    signal cic_version      : std_logic;
    signal cic_type         : std_logic;
+   signal isSoftreset      : std_logic;
 
    signal bus_read_rom     : std_logic := '0';
    signal bus_read_ram     : std_logic := '0';
@@ -348,14 +350,14 @@ begin
          
          end case;  
          
-         if (reset = '1') then
+         if (reset = '1' or softreset = '1') then
             
             bus_done             <= '0';
             bus_read_rom         <= '0';
             bus_read_ram         <= '0';
             bus_write_ram        <= '0';
                   
-            pifrom_locked        <= '0';
+            
             
             startup_complete     <= '0';
             ram_address_b        <= (others => '0');
@@ -366,12 +368,16 @@ begin
             SIPIF_read_latched   <= '0';
             
             if (loading_savestate = '1') then
-               state      <= IDLE;
-               ram_wren_b <= '0';
+               state          <= IDLE;
+               ram_wren_b     <= '0';
+               pifrom_locked  <= '1';
             else
-               state      <= CLEARRAM;
-               ram_wren_b <= '1';
+               state          <= CLEARRAM;
+               ram_wren_b     <= '1';
+               pifrom_locked  <= '0';
             end if;
+            
+            isSoftreset <= softreset;
             
          elsif (ce = '1') then
          
@@ -455,6 +461,9 @@ begin
                   state            <= IDLE;  
                   ram_address_b    <= 6x"25";
                   ram_data_b       <= x"0" & cic_type & cic_version & "00"; -- version and type, depends on CIC
+                  if (isSoftreset = '1') then
+                     ram_data_b(1) <= '1';
+                  end if;
                   ram_wren_b       <= '1';   
                   startup_complete <= '1';
             

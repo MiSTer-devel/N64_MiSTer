@@ -16,6 +16,7 @@ entity cpu is
       ce_93                 : in  std_logic;
       reset_1x              : in  std_logic;
       reset_93              : in  std_logic;
+      preNMI                : in  std_logic;
       
       INSTRCACHEON          : in  std_logic;
       DATACACHEON           : in  std_logic;
@@ -3323,6 +3324,7 @@ begin
       stall4Masked            => stall4Masked,
       executeNew              => executeNew,
       reset                   => reset_93,
+      preNMI                  => preNMI,
       
       RANDOMMISS              => RANDOMMISS,
       DISABLE_BOOTCOUNT       => DISABLE_BOOTCOUNT,
