@@ -305,10 +305,10 @@ begin
          when CIC_TYPE_7105 => cic_seed <= x"91"; cic_version <= '0'; cic_type <= '0';
          when CIC_TYPE_6106 => cic_seed <= x"85"; cic_version <= '0'; cic_type <= '0';
          when CIC_TYPE_7106 => cic_seed <= x"85"; cic_version <= '0'; cic_type <= '0';
-         when CIC_TYPE_8303 => cic_seed <= x"DD"; cic_version <= '0'; cic_type <= '1';
-         when CIC_TYPE_8401 => cic_seed <= x"DD"; cic_version <= '0'; cic_type <= '1';
+         when CIC_TYPE_8303 => cic_seed <= x"DD"; cic_version <= '1'; cic_type <= '1';
+         when CIC_TYPE_8401 => cic_seed <= x"DD"; cic_version <= '1'; cic_type <= '1';
          when CIC_TYPE_5167 => cic_seed <= x"DD"; cic_version <= '0'; cic_type <= '0';
-         when CIC_TYPE_DDUS => cic_seed <= x"DE"; cic_version <= '0'; cic_type <= '1';
+         when CIC_TYPE_DDUS => cic_seed <= x"DE"; cic_version <= '1'; cic_type <= '1';
          when CIC_TYPE_5101 => cic_seed <= x"AC"; cic_version <= '0'; cic_type <= '0';
          when others => null;
       end case;

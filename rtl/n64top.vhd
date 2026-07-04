@@ -89,6 +89,10 @@ entity n64top is
       cartAvailable           : in  std_logic;
       romcopy_start           : in  std_logic;
       romcopy_size            : in  unsigned(26 downto 0);
+      ddDiskAvailable         : in  std_logic;
+      ddIplAvailable          : in  std_logic;
+      ddDevMode               : in  std_logic;
+      hpsRTC                  : in  std_logic_vector(64 downto 0);
       
       sdram_ena               : out std_logic;
       sdram_rnw               : out std_logic;
@@ -250,6 +254,7 @@ architecture arch of n64top is
   
    -- irq
    signal irqRequest             : std_logic;
+   signal irqCartRequest         : std_logic;
    signal irqVector              : std_logic_vector(5 downto 0);        
    
    -- DDR3/RDRAM mux
@@ -1018,14 +1023,20 @@ begin
       clk1x                => clk1x,        
       ce                   => ce_1x,           
       reset                => reset_intern_1x, 
+      second_ena           => second_ena,
       
       FASTROM              => FASTROM,
       SAVETYPE             => SAVETYPE,
       fastDecay            => is_simu,
       cartAvailable        => cartAvailable,
       cartSize             => romcopy_size,
+      ddDiskAvailable      => ddDiskAvailable,
+      ddIplAvailable       => ddIplAvailable,
+      ddDevMode            => ddDevMode,
+      hpsRTC               => hpsRTC,
 
       irq_out              => irqVector(4),
+      dd_irq_out           => irqCartRequest,
       
       error_PI             => error_PI,
       
@@ -1047,6 +1058,15 @@ begin
       rdram_burstcount     => rdram_burstcount(DDR3MUX_PI),
       rdram_done           => rdram_done(DDR3MUX_PI),      
       rdram_dataRead       => rdram_dataRead,      
+
+      ddram_request        => rdram_request(DDR3MUX_DD),
+      ddram_rnw            => rdram_rnw(DDR3MUX_DD),
+      ddram_address        => rdram_address(DDR3MUX_DD),
+      ddram_burstcount     => rdram_burstcount(DDR3MUX_DD),
+      ddram_writeMask      => rdram_writeMask(DDR3MUX_DD),
+      ddram_dataWrite      => rdram_dataWrite(DDR3MUX_DD),
+      ddram_done           => rdram_done(DDR3MUX_DD),
+      ddram_dataRead       => rdram_dataRead,
       
       PIfifo_Din           => PIfifo_Din,    
       PIfifo_Wr            => PIfifo_Wr,   
@@ -1602,6 +1622,7 @@ begin
       DISABLE_DTLBMINI     => DISABLE_DTLBMINI, 
             
       irqRequest           => irqRequest,
+      irqCartRequest       => irqCartRequest,
       cpuPaused            => '0',
          
       error_instr          => errorCPU_instr,

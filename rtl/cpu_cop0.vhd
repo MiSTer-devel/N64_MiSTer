@@ -25,6 +25,7 @@ entity cpu_cop0 is
       error_TLB               : out std_logic := '0';
             
       irqRequest              : in  std_logic;
+      irqCartRequest          : in  std_logic;
       irqTrigger              : out std_logic;
       decode_irq              : in  std_logic;
 
@@ -611,6 +612,7 @@ begin
          
             -- interrupt
             COP0_13_CAUSE_interruptPending(2) <= irqRequest;
+            COP0_13_CAUSE_interruptPending(3) <= irqCartRequest;
             if (preNMI = '1') then
                COP0_13_CAUSE_interruptPending(4) <= preNMI;
             end if;
