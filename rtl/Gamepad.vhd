@@ -12,7 +12,7 @@ entity Gamepad is
       
       second_ena           : in  std_logic;
      
-      PADTYPE              : in  std_logic_vector(2 downto 0); -- 000 = normal, 001 = empty, 010 = cpak, 011 = rumble, 100 = snac, 101 = transfer pak, 110 = keyboard
+      PADTYPE              : in  std_logic_vector(2 downto 0); -- 000 = normal, 001 = empty, 010 = cpak, 011 = rumble, 100 = snac, 101 = transfer pak, 110 = keyboard, 111 = mouse
       padIndex             : in  unsigned(1 downto 0);
       MOUSETYPE            : in  std_logic_vector(2 downto 0); -- 00 - mouse off, 001 : ABZ, 010: ZAB, 011: ZBA
       PADDPADSWAP          : in  std_logic;
@@ -201,6 +201,7 @@ architecture arch of Gamepad is
                                     
    signal mouseOutX                 : signed(7 downto 0) := (others => '0');
    signal mouseOutY                 : signed(7 downto 0) := (others => '0');
+   signal mouse_selected            : std_logic;
    
 begin 
               
@@ -235,6 +236,7 @@ begin
    end process;
               
    slowNextByteEna <= '1' when (slowcnt = 1986) else '0';
+   mouse_selected  <= '1' when (PADTYPE = "111" or (command_padindex = "00" and MOUSETYPE /= "000")) else '0';
 
    sdram_burstcount <= x"01";
    
@@ -354,6 +356,8 @@ begin
                end if;
                if (PADTYPE = "110") then
                   toPIF_data <= x"00"; -- Keyboard type (0x00 0x02 0x00)
+               elsif (PADTYPE = "111") then
+                  toPIF_data <= x"02"; -- Mouse type (0x02 0x00 0x02)
                else
                   toPIF_data <= x"05";
                end if;
@@ -491,7 +495,12 @@ begin
                   if (signed(pad_muxed_analogV) <= -64) then toPIF_data(2) <= '1'; end if;
                end if;
                
-               if (command_padindex = "00") then
+               if (PADTYPE = "111") then
+                  toPIF_data <= (others => '0');
+                  toPIF_data(7) <= MouseLeft;
+                  toPIF_data(6) <= MouseRight;
+                  toPIF_data(5) <= MouseMiddle;
+               elsif (command_padindex = "00") then
                   if (MOUSETYPE = "001") then
                      toPIF_data(7) <= pad_muxed_A or MouseLeft;
                      toPIF_data(6) <= pad_muxed_B or MouseRight;
@@ -545,7 +554,7 @@ begin
                   else toPIF_data <= (others => '0'); end if;
                end if;
                
-               if (slowNextByteEna = '1' and command_padindex = "00" and MOUSETYPE /= "000") then
+               if (slowNextByteEna = '1' and mouse_selected = '1') then
                   if (mouseAccX >= 85) then
                      toPIF_data <= std_logic_vector(to_signed(85, mouseOutX'length));
                      mouseAccX  <= mouseAccX - 85 + mouseIncX;
@@ -581,7 +590,7 @@ begin
                   else toPIF_data <= (others => '0'); end if;
                end if;
                
-               if (slowNextByteEna = '1' and command_padindex = "00" and MOUSETYPE /= "000") then
+               if (slowNextByteEna = '1' and mouse_selected = '1') then
                   if (mouseAccY >= 85) then
                      toPIF_data <= std_logic_vector(to_signed(85, mouseOutY'length));
                      mouseAccY  <= mouseAccY - 85 + mouseIncY;

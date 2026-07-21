@@ -104,7 +104,7 @@ entity n64top is
       sdram_dataRead          : in  std_logic_vector(31 downto 0);
       
       -- PAD
-      PADTYPE0                : in  std_logic_vector(2 downto 0); -- 000 = normal, 001 = empty, 010 = cpak, 011 = rumble, 100 = snac, 101 = transfer pak
+      PADTYPE0                : in  std_logic_vector(2 downto 0); -- 000 = normal, 001 = empty, 010 = cpak, 011 = rumble, 100 = snac, 101 = transfer pak, 110 = keyboard, 111 = mouse
       PADTYPE1                : in  std_logic_vector(2 downto 0);
       PADTYPE2                : in  std_logic_vector(2 downto 0);
       PADTYPE3                : in  std_logic_vector(2 downto 0);
@@ -1117,6 +1117,10 @@ begin
             PADTYPE_latched1 <= PADTYPE1;
             PADTYPE_latched2 <= PADTYPE2;
             PADTYPE_latched3 <= PADTYPE3;
+            -- TransferPak is only supported on port 1.
+            if (PADTYPE1 = "101") then PADTYPE_latched1 <= "000"; end if;
+            if (PADTYPE2 = "101") then PADTYPE_latched2 <= "000"; end if;
+            if (PADTYPE3 = "101") then PADTYPE_latched3 <= "000"; end if;
             -- force pause between rumble and cpak
             if (pakPause0 > 0) then PADTYPE_latched0 <= "000"; pad_A_filtered(0) <= '0'; pad_B_filtered(0) <= '0'; pad_START_filtered(0) <= '0'; end if;
             if (pakPause1 > 0) then PADTYPE_latched1 <= "000"; pad_A_filtered(1) <= '0'; pad_B_filtered(1) <= '0'; pad_START_filtered(1) <= '0'; end if;
@@ -1209,7 +1213,6 @@ begin
       second_ena           => second_ena,
 
       hpsRTC               => hpsRTC,
-
 
       PIFCOMPARE           => PIFCOMPARE,
       ISPAL                => ISPAL,
