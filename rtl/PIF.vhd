@@ -14,7 +14,8 @@ entity pif is
       softreset            : in  std_logic;
       
       second_ena           : in  std_logic;
-      
+      hpsRTC               : in  std_logic_vector(64 downto 0);
+
       PIFCOMPARE           : in  std_logic;
       ISPAL                : in  std_logic;
       CICTYPE              : in  std_logic_vector(3 downto 0);
@@ -169,7 +170,16 @@ architecture arch of pif is
       EXTCOMM_EEPROMWRITE_SETADDR,
       EXTCOMM_EEPROMWRITE_DATAREAD,
       EXTCOMM_EEPROMWRITE_DATAWRITE,
-      
+
+      EXTCOMM_RTCINFO,
+      EXTCOMM_RTCREAD_BLOCK,
+      EXTCOMM_RTCREAD_SETBLOCK,
+      EXTCOMM_RTCREAD_DATAWRITE,
+      EXTCOMM_RTCWRITE_BLOCK,
+      EXTCOMM_RTCWRITE_SETBLOCK,
+      EXTCOMM_RTCWRITE_DATAREAD,
+      EXTCOMM_RTCWRITE_DATAWRITE,
+
       EXTCOMM_RESPONSE_VALIDOVER,
       EXTCOMM_RESPONSE_WRITE,
       EXTCOMM_RESPONSE_END
@@ -241,10 +251,68 @@ architecture arch of pif is
    );
    signal EEPROMState               : tEEPROMState := EEPROM_IDLE;
    signal eeprom_addr_clear         : std_logic_vector(8 downto 0) := (others => '0');
-   
-begin 
+
+   -- joybus RTC (Animal Forest / Doubutsu no Mori cart RTC, commands 0x06-0x08)
+   subtype tRtcByte is std_logic_vector(7 downto 0);
+
+   function rtc_bcd_increment(value : tRtcByte) return tRtcByte is
+      variable result : unsigned(7 downto 0);
+   begin
+      result := unsigned(value);
+      if unsigned(value(3 downto 0)) = 9 then
+         result(3 downto 0) := (others => '0');
+         result(7 downto 4) := unsigned(value(7 downto 4)) + 1;
+      else
+         result(3 downto 0) := unsigned(value(3 downto 0)) + 1;
+      end if;
+      return std_logic_vector(result);
+   end function;
+
+   function rtc_days_in_month_bcd(year : tRtcByte; month : tRtcByte) return tRtcByte is
+      variable leap_remainder : unsigned(1 downto 0);
+   begin
+      case month is
+         when x"04" | x"06" | x"09" | x"11" =>
+            return x"30";
+         when x"02" =>
+            -- Decimal (10 * tens + ones) modulo four. Only the low bit of
+            -- the BCD tens digit contributes because 10 modulo four is two.
+            leap_remainder := (others => '0');
+            leap_remainder(1) := year(4);
+            leap_remainder := leap_remainder + unsigned(year(1 downto 0));
+            if leap_remainder = 0 then return x"29"; end if;
+            return x"28";
+         when others =>
+            return x"31";
+      end case;
+   end function;
+
+   signal rtc_wp        : std_logic_vector(1 downto 0) := "00";
+   signal rtc_stop      : std_logic_vector(1 downto 0) := "00";
+   signal rtc_b1bit7    : std_logic := '0';
+   signal rtc_num4      : std_logic_vector(6 downto 0) := (others => '0');
+   signal rtc_num5      : std_logic_vector(5 downto 0) := (others => '0');
+   -- date/time (block 2), all BCD; init = 2000-01-01 Saturday 00:00:00
+   signal rtc_seconds   : tRtcByte := x"00";
+   signal rtc_minutes   : tRtcByte := x"00";
+   signal rtc_hours     : tRtcByte := x"00";
+   signal rtc_dom       : tRtcByte := x"01";
+   signal rtc_dow       : tRtcByte := x"06";
+   signal rtc_month     : tRtcByte := x"01";
+   signal rtc_year      : tRtcByte := x"00";
+   signal rtc_century   : tRtcByte := x"01"; -- centuries since 1900 (0-1)
+   signal rtc_seeded    : std_logic := '0';
+   signal rtc_status    : tRtcByte;
+   signal RTC_block     : std_logic_vector(1 downto 0) := "00";
+   signal RTC_byteindex : unsigned(3 downto 0) := (others => '0');
+
+begin
 
    isIdle <= '1' when (state = IDLE) else '0';
+
+   -- RTC status byte: bit 7 = stopped (safe to write block 2); crystal/battery
+   -- failure bits are never set
+   rtc_status <= x"80" when (rtc_stop /= "00") else x"00";
 
    pifrom_addr <= ISPAL & std_logic_vector(bus_addr(10 downto 2));
 
@@ -317,9 +385,12 @@ begin
    command_padindex <= EXT_channel(1 downto 0);
               
    process (clk1x)
+      variable rtcv_mdays : tRtcByte;
+      variable rtc_seed_applied : boolean;
    begin
       if rising_edge(clk1x) then
-      
+         rtc_seed_applied := false;
+
          error           <= '0';
          pifram_wren     <= '0';
          eeprom_wren_b   <= '0';
@@ -381,6 +452,64 @@ begin
             
          elsif (ce = '1') then
          
+            if (rtc_seeded = '0' and hpsRTC(31 downto 24) /= x"00" and hpsRTC(39 downto 32) /= x"00") then
+               rtc_seconds <= hpsRTC( 7 downto  0);
+               rtc_minutes <= hpsRTC(15 downto  8);
+               rtc_hours   <= hpsRTC(23 downto 16);
+               rtc_dom     <= hpsRTC(31 downto 24);
+               rtc_month   <= hpsRTC(39 downto 32);
+               rtc_year    <= hpsRTC(47 downto 40);
+               rtc_dow     <= "00000" & hpsRTC(50 downto 48);
+               -- same 1996..2095 windowing as the 64DD RTC: 96-99 = 19xx
+               if (unsigned(hpsRTC(47 downto 40)) >= unsigned'(x"96")) then
+                  rtc_century <= x"00";
+               else
+                  rtc_century <= x"01";
+               end if;
+               rtc_seeded <= '1';
+               rtc_seed_applied := true;
+            end if;
+
+            if (second_ena = '1' and rtc_stop = "00" and not rtc_seed_applied) then
+               rtcv_mdays := rtc_days_in_month_bcd(rtc_year, rtc_month);
+               if (unsigned(rtc_seconds) < unsigned'(x"59")) then
+                  rtc_seconds <= rtc_bcd_increment(rtc_seconds);
+               else
+                  rtc_seconds <= x"00";
+                  if (unsigned(rtc_minutes) < unsigned'(x"59")) then
+                     rtc_minutes <= rtc_bcd_increment(rtc_minutes);
+                  else
+                     rtc_minutes <= x"00";
+                     if (unsigned(rtc_hours) < unsigned'(x"23")) then
+                        rtc_hours <= rtc_bcd_increment(rtc_hours);
+                     else
+                        rtc_hours <= x"00";
+                        if (unsigned(rtc_dow) < unsigned'(x"06")) then
+                           rtc_dow <= rtc_bcd_increment(rtc_dow);
+                        else
+                           rtc_dow <= x"00";
+                        end if;
+                        if (unsigned(rtc_dom) < unsigned(rtcv_mdays)) then
+                           rtc_dom <= rtc_bcd_increment(rtc_dom);
+                        else
+                           rtc_dom <= x"01";
+                           if (unsigned(rtc_month) < unsigned'(x"12")) then
+                              rtc_month <= rtc_bcd_increment(rtc_month);
+                           else
+                              rtc_month <= x"01";
+                              if (unsigned(rtc_year) < unsigned'(x"99")) then
+                                 rtc_year <= rtc_bcd_increment(rtc_year);
+                              else
+                                 rtc_year    <= x"00";
+                                 rtc_century <= x"01";
+                              end if;
+                           end if;
+                        end if;
+                     end if;
+                  end if;
+               end if;
+            end if;
+
             SIPIF_ProcDone <= '0';
             ram_wren_b     <= '0';
          
@@ -723,15 +852,25 @@ begin
                      state         <= EXTCOMM_SEND;
                   end if;
                
-               when EXTCOMM_EVALTYPEEEPROMRTC =>      
+               when EXTCOMM_EVALTYPEEEPROMRTC =>
                   if (ram_q_b = x"00" or ram_q_b = x"FF") then
                      state         <= EXTCOMM_EEPROMINFO;
                   elsif (ram_q_b = x"04") then
                      state         <= EXTCOMM_EEPROMREAD_READADDR;
                      EXT_index     <= EXT_index + 1;
-                     ram_address_b <= std_logic_vector(EXT_index + 1);                  
+                     ram_address_b <= std_logic_vector(EXT_index + 1);
                   elsif (ram_q_b = x"05") then
                      state         <= EXTCOMM_EEPROMWRITE_READADDR;
+                     EXT_index     <= EXT_index + 1;
+                     ram_address_b <= std_logic_vector(EXT_index + 1);
+                  elsif (ram_q_b = x"06") then
+                     state         <= EXTCOMM_RTCINFO;
+                  elsif (ram_q_b = x"07") then
+                     state         <= EXTCOMM_RTCREAD_BLOCK;
+                     EXT_index     <= EXT_index + 1;
+                     ram_address_b <= std_logic_vector(EXT_index + 1);
+                  elsif (ram_q_b = x"08") then
+                     state         <= EXTCOMM_RTCWRITE_BLOCK;
                      EXT_index     <= EXT_index + 1;
                      ram_address_b <= std_logic_vector(EXT_index + 1);
                   else
@@ -888,7 +1027,118 @@ begin
                   state         <= EXTCOMM_EEPROMWRITE_DATAREAD;
                   eeprom_in_b   <= ram_q_b;
                   eeprom_wren_b <= '1';
-                  
+
+               -- joybus RTC (Animal Forest cart RTC)
+               when EXTCOMM_RTCINFO =>
+                  -- identifier 0x0010 + status byte
+                  state <= EXTCOMM_RESPONSE_VALIDOVER;
+                  EXT_valid           <= '1';
+                  EXT_responsedata(0) <= x"00";
+                  EXT_responsedata(1) <= x"10";
+                  EXT_responsedata(2) <= rtc_status;
+
+               when EXTCOMM_RTCREAD_BLOCK =>
+                  if (EXT_send >= 2) then
+                     state <= EXTCOMM_RTCREAD_SETBLOCK;
+                  else
+                     state <= EXTCOMM_RESPONSE_VALIDOVER;
+                  end if;
+
+               when EXTCOMM_RTCREAD_SETBLOCK =>
+                  -- ram_q_b = block select; respond 8 data bytes + status
+                  RTC_block     <= ram_q_b(1 downto 0);
+                  RTC_byteindex <= (others => '0');
+                  EXT_valid     <= '1';
+                  EXT_skip      <= '1';
+                  state         <= EXTCOMM_RTCREAD_DATAWRITE;
+
+               when EXTCOMM_RTCREAD_DATAWRITE =>
+                  ram_wren_b    <= '1';
+                  EXT_index     <= EXT_index + 1;
+                  ram_address_b <= std_logic_vector(EXT_index + 1);
+                  RTC_byteindex <= RTC_byteindex + 1;
+                  if (RTC_byteindex = 8) then
+                     state <= EXTCOMM_RESPONSE_VALIDOVER;
+                  end if;
+                  ram_data_b <= x"00"; -- blocks 1/3 and unimplemented bytes read 0
+                  if (RTC_byteindex = 8) then
+                     ram_data_b <= rtc_status;
+                  elsif (RTC_block = "00") then
+                     case to_integer(RTC_byteindex) is
+                        when 0      => ram_data_b <= "000000" & rtc_wp;
+                        when 1      => ram_data_b <= rtc_b1bit7 & "0000" & rtc_stop & '0';
+                        when 4      => ram_data_b <= '0' & rtc_num4;
+                        when 5      => ram_data_b <= "00" & rtc_num5;
+                        when others => null;
+                     end case;
+                  elsif (RTC_block = "10") then
+                     case to_integer(RTC_byteindex) is
+                        when 0      => ram_data_b <= rtc_seconds;
+                        when 1      => ram_data_b <= rtc_minutes;
+                        when 2      => ram_data_b <= rtc_hours or x"80";
+                        when 3      => ram_data_b <= rtc_dom;
+                        when 4      => ram_data_b <= rtc_dow;
+                        when 5      => ram_data_b <= rtc_month;
+                        when 6      => ram_data_b <= rtc_year;
+                        when 7      => ram_data_b <= rtc_century;
+                        when others => null;
+                     end case;
+                  end if;
+
+               when EXTCOMM_RTCWRITE_BLOCK =>
+                  if (EXT_send >= 10) then
+                     state <= EXTCOMM_RTCWRITE_SETBLOCK;
+                  else
+                     state <= EXTCOMM_RESPONSE_VALIDOVER;
+                  end if;
+
+               when EXTCOMM_RTCWRITE_SETBLOCK =>
+                  -- ram_q_b = block select;
+                  RTC_block     <= ram_q_b(1 downto 0);
+                  RTC_byteindex <= (others => '0');
+                  EXT_valid     <= '1';
+                  EXT_index     <= EXT_index + 1;
+                  ram_address_b <= std_logic_vector(EXT_index + 1);
+                  state         <= EXTCOMM_RTCWRITE_DATAREAD;
+
+               when EXTCOMM_RTCWRITE_DATAREAD =>
+                  EXT_index     <= EXT_index + 1;
+                  ram_address_b <= std_logic_vector(EXT_index + 1);
+                  state         <= EXTCOMM_RTCWRITE_DATAWRITE;
+
+               when EXTCOMM_RTCWRITE_DATAWRITE =>
+                  RTC_byteindex <= RTC_byteindex + 1;
+                  if (RTC_byteindex = 7) then
+                     state               <= EXTCOMM_RESPONSE_VALIDOVER;
+                     EXT_index           <= EXT_index - 1;
+                     EXT_responsedata(0) <= rtc_status;
+                  else
+                     state <= EXTCOMM_RTCWRITE_DATAREAD;
+                  end if;
+                  if (RTC_block = "00") then
+                     case to_integer(RTC_byteindex) is
+                        when 0      => rtc_wp     <= ram_q_b(1 downto 0);
+                        when 1      => rtc_b1bit7 <= ram_q_b(7);
+                                       rtc_stop   <= ram_q_b(2 downto 1);
+                        when 4      => rtc_num4   <= ram_q_b(6 downto 0);
+                        when 5      => rtc_num5   <= ram_q_b(5 downto 0);
+                        when others => null;
+                     end case;
+                  elsif (RTC_block = "10" and rtc_wp(1) = '0') then
+                     rtc_seeded <= '1';
+                     case to_integer(RTC_byteindex) is
+                        when 0      => rtc_seconds <= ram_q_b;
+                        when 1      => rtc_minutes <= ram_q_b;
+                        when 2      => rtc_hours   <= ram_q_b and x"7F";
+                        when 3      => rtc_dom     <= ram_q_b;
+                        when 4      => rtc_dow     <= ram_q_b;
+                        when 5      => rtc_month   <= ram_q_b;
+                        when 6      => rtc_year    <= ram_q_b;
+                        when 7      => rtc_century <= ram_q_b;
+                        when others => null;
+                     end case;
+                  end if;
+
                -- response writeback
                when EXTCOMM_RESPONSE_VALIDOVER =>
                   if (EXT_receive > 0 and EXT_valid = '1' and EXT_skip = '0') then

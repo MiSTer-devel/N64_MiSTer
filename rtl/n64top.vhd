@@ -1208,6 +1208,9 @@ begin
       
       second_ena           => second_ena,
 
+      hpsRTC               => hpsRTC,
+
+
       PIFCOMPARE           => PIFCOMPARE,
       ISPAL                => ISPAL,
       CICTYPE              => CICTYPE,
