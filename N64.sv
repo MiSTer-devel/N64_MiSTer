@@ -295,9 +295,9 @@ wire reset_or = RESET | buttons[1] | status[0];
 parameter CONF_STR = {
 	"N64;SS3C000000:1000000;",
    "FS1,N64z64n64v64,Load,32000000;",
-   "F2,GBCGB ,Load GB-Transfer;",
-   "F3,NDDndd,Load 64DD Disk,36000000;",
+	"F3,NDDndd,Load 64DD Disk,36000000;",
    "F4,N64z64n64v64binrom,Load 64DD IPL,30C00000;",
+	"F2,GBCGB ,Load GB-Transfer;",
    "-;",
    "C,Cheats;",
    "O[103],Cheats Enabled,Yes,No;",
