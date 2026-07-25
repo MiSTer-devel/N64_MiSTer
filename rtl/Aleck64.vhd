@@ -129,7 +129,9 @@ architecture arch of Aleck64 is
 
    -- 320x256 E90 overlay.  A 16-bit framebuffer uses the core's established
    -- altsyncram primitive at its exact 81,920-pixel depth.  Each
-   -- entry holds opaque and RGB555.  Previous display-list positions are
+   -- entry holds foreground/low-priority and RGB555.  Bit 15 marks normal E90
+   -- foreground; bit 14 with bit 15 clear marks the keyed playfield backdrop.
+   -- Previous display-list positions are
    -- cleared before the current list is redrawn so moved objects cannot leave
    -- stale pixels, without spending vertical blank erasing the whole screen.
    signal fb_addr_write   : std_logic_vector(16 downto 0) := (others => '0');
@@ -681,11 +683,11 @@ begin
                   if render_playfield = '1' then
                      if xpos >= 0 and xpos < 320 and ypos >= 0 and ypos < 256 then
                         fb_addr_write   <= std_logic_vector(to_unsigned((ypos * 320) + xpos, 17));
-                        raw_color(4 downto 0)   := e90_playfield_level(render_x);
-                        raw_color(9 downto 5)   := e90_playfield_level(render_x);
-                        raw_color(14 downto 10) := e90_playfield_level(render_x);
-                        raw_color(15) := '1';
-                        fb_data_write    <= raw_color;
+                        -- Bit 14 is a low-priority marker.  Keeping bit 15
+                        -- clear distinguishes these cells from pieces without
+                        -- increasing the framebuffer width.
+                        fb_data_write    <= "01" & "000000000" &
+                                            e90_playfield_level(render_x);
                         fb_byteena_write <= "11";
                         fb_write         <= '1';
                      end if;
@@ -831,10 +833,20 @@ begin
          video_r_o <= r_delay2;
          video_g_o <= g_delay2;
          video_b_o <= b_delay2;
-         if e90_enabled = '1' and fb_data_read(15) = '1' then
-            video_r_o <= expand5(raw_color(4 downto 0));
-            video_g_o <= expand5(raw_color(9 downto 5));
-            video_b_o <= expand5(raw_color(14 downto 10));
+         if e90_enabled = '1' then
+            if fb_data_read(15) = '1' then
+               video_r_o <= expand5(raw_color(4 downto 0));
+               video_g_o <= expand5(raw_color(9 downto 5));
+               video_b_o <= expand5(raw_color(14 downto 10));
+            elsif fb_data_read(14) = '1' and
+                  r_delay2 = x"00" and g_delay2 = x"00" and b_delay2 = x"00" then
+               -- The N64 black playfield is the transparent key for E90's
+               -- banded backdrop.  Non-black VI graphics retain priority,
+               -- including the animation drawn when a round is won.
+               video_r_o <= expand5(raw_color(4 downto 0));
+               video_g_o <= expand5(raw_color(4 downto 0));
+               video_b_o <= expand5(raw_color(4 downto 0));
+            end if;
          end if;
 
          video_hsync_o  <= hsync_delay(1);
