@@ -12,14 +12,20 @@ entity PI is
       clk1x                : in  std_logic;
       ce                   : in  std_logic;
       reset                : in  std_logic;
+      second_ena           : in  std_logic;
       
       FASTROM              : in  std_logic;
       SAVETYPE             : in  std_logic_vector(2 downto 0); -- 0 -> None, 1 -> EEPROM4, 2 -> EEPROM16, 3 -> SRAM32, 4 -> SRAM96, 5 -> Flash
       fastDecay            : in  std_logic;
       cartAvailable        : in  std_logic;
       cartSize             : in  unsigned(26 downto 0);
-      
+      ddDiskAvailable      : in  std_logic;
+      ddIplAvailable       : in  std_logic;
+      ddDevMode            : in  std_logic;
+      hpsRTC               : in  std_logic_vector(64 downto 0);
+
       irq_out              : out std_logic := '0';
+      dd_irq_out           : out std_logic := '0';
       
       error_PI             : out std_logic := '0';
       
@@ -41,6 +47,15 @@ entity PI is
       rdram_burstcount     : out unsigned(9 downto 0):= (others => '0');
       rdram_done           : in  std_logic;
       rdram_dataRead       : in  std_logic_vector(63 downto 0);
+
+      ddram_request        : out std_logic := '0';
+      ddram_rnw            : out std_logic := '0';
+      ddram_address        : out unsigned(27 downto 0):= (others => '0');
+      ddram_burstcount     : out unsigned(9 downto 0):= (others => '0');
+      ddram_writeMask      : out std_logic_vector(7 downto 0) := (others => '0');
+      ddram_dataWrite      : out std_logic_vector(63 downto 0) := (others => '0');
+      ddram_done           : in  std_logic;
+      ddram_dataRead       : in  std_logic_vector(63 downto 0);
       
       PIfifo_Din           : out std_logic_vector(92 downto 0); -- 64bit data + 24 bit address + 8 byte enables
       PIfifo_Wr            : out std_logic;  
@@ -111,10 +126,13 @@ architecture arch of PI is
       WAITFLASH,
       COPYDMABLOCK,
       DMA_READCART,
+      DMA_READDD,
+      DMA_READDD_WAIT,
+      DMA_READDD_DATA,
       DMA_READRDRAM,
       DMA_WAITRDRAM,
       DMA_WAITSDRAM
-   ); 
+   );
    signal state                  : tState := IDLE;
    
    signal writtenData            : std_logic_vector(31 downto 0) := (others => '0');   
@@ -154,6 +172,26 @@ architecture arch of PI is
    signal flash_addrB      : std_logic_vector(4 downto 0) := (others => '0');
    signal flash_DataOutB   : std_logic_vector(31 downto 0);
 
+   -- The 64DD controller owns its ASIC state, sector RAM, RTC, and DDR client.
+   -- PI retains only the DMA pacing needed to feed the existing PI FIFO.
+   signal pi_bus_cart_dataRead : std_logic_vector(31 downto 0) := (others => '0');
+   signal pi_bus_cart_done     : std_logic := '0';
+   signal dd_direct_selected   : std_logic;
+   signal dd_direct_dataRead   : std_logic_vector(31 downto 0);
+   signal dd_direct_done       : std_logic;
+   signal dd_hold_pi           : std_logic;
+   signal dd_dma_reg_selected  : std_logic;
+   signal dd_dma_ipl_selected  : std_logic;
+   signal dd_dma_read_prepare  : std_logic;
+   signal dd_dma_read_commit   : std_logic;
+   signal dd_dma_dataRead      : std_logic_vector(15 downto 0);
+   signal dd_dma_write         : std_logic;
+   signal dd_dma_dataWrite     : std_logic_vector(15 downto 0);
+   signal dd_dma_ipl_start     : std_logic;
+   signal dd_dma_ipl_done      : std_logic;
+   signal dd_dma_ipl_dataRead  : std_logic_vector(63 downto 0);
+   signal dd_service_enable    : std_logic;
+
    -- savestates
    type t_ssarray is array(0 to 7) of std_logic_vector(63 downto 0);
    signal ss_in  : t_ssarray := (others => (others => '0'));  
@@ -161,11 +199,68 @@ architecture arch of PI is
 
 begin 
 
-   irq_out <= PI_STATUS_irq;
-   
+   irq_out    <= PI_STATUS_irq;
+
    rdram_burstcount <= 10x"01";
    sdram_burstcount <= x"01";
-   
+
+   bus_cart_dataRead <= pi_bus_cart_dataRead;
+   bus_cart_done     <= pi_bus_cart_done;
+
+   dd_service_enable   <= '1' when state = IDLE else '0';
+   dd_dma_read_prepare <= '1' when state = DMA_READDD else '0';
+   dd_dma_read_commit  <= '1' when state = DMA_READDD_DATA else '0';
+   dd_dma_write        <= '1' when state = DMA_WAITRDRAM and rdram_done = '1' and dd_dma_reg_selected = '1' else '0';
+   dd_dma_ipl_start    <= '1' when state = COPYDMABLOCK and copycnt < blocklength and dd_dma_ipl_selected = '1' else '0';
+
+   with PI_DRAM_ADDR(2 downto 1) select dd_dma_dataWrite <=
+      rdram_dataRead(15 downto  0) when "00",
+      rdram_dataRead(31 downto 16) when "01",
+      rdram_dataRead(47 downto 32) when "10",
+      rdram_dataRead(63 downto 48) when others;
+
+   iPI_DD: entity work.PI_DD
+   port map
+   (
+      clk1x            => clk1x,
+      ce               => ce,
+      reset            => reset,
+      second_ena       => second_ena,
+      diskAvailable    => ddDiskAvailable,
+      iplAvailable     => ddIplAvailable,
+      developmentMode  => ddDevMode,
+      hpsRTC           => hpsRTC,
+      irq_out          => dd_irq_out,
+      service_enable   => dd_service_enable,
+      hold_pi          => dd_hold_pi,
+      direct_addr      => bus_cart_addr,
+      direct_dataWrite => bus_cart_dataWrite,
+      direct_read      => bus_cart_read_latched,
+      direct_write     => bus_cart_write_latched,
+      direct_selected  => dd_direct_selected,
+      direct_dataRead  => dd_direct_dataRead,
+      direct_done      => dd_direct_done,
+      dma_addr          => PI_CART_ADDR,
+      dma_reg_selected => dd_dma_reg_selected,
+      dma_ipl_selected => dd_dma_ipl_selected,
+      dma_read_prepare => dd_dma_read_prepare,
+      dma_read_commit  => dd_dma_read_commit,
+      dma_dataRead     => dd_dma_dataRead,
+      dma_write        => dd_dma_write,
+      dma_dataWrite    => dd_dma_dataWrite,
+      dma_ipl_start    => dd_dma_ipl_start,
+      dma_ipl_done     => dd_dma_ipl_done,
+      dma_ipl_dataRead => dd_dma_ipl_dataRead,
+      ddram_request    => ddram_request,
+      ddram_rnw        => ddram_rnw,
+      ddram_address    => ddram_address,
+      ddram_burstcount => ddram_burstcount,
+      ddram_writeMask  => ddram_writeMask,
+      ddram_dataWrite  => ddram_dataWrite,
+      ddram_done       => ddram_done,
+      ddram_dataRead   => ddram_dataRead
+   );
+
    distEndOfRow <= 16#800# - to_integer(PI_DRAM_ADDR(10 downto 0));
 
    PI_BSD_LAT <= PI_BSD_DOM2_LAT when (PI_CART_ADDR(28 downto 0) < 16#10000000#) else PI_BSD_DOM1_LAT;
@@ -195,6 +290,8 @@ begin
       variable count_new       : unsigned(24 downto 0);
       variable writemask_new   : std_logic_vector(1 downto 0);
       variable dma_readData    : std_logic_vector(15 downto 0);
+      variable dma_fifoData    : std_logic_vector(15 downto 0);
+
    begin
       if rising_edge(clk1x) then
       
@@ -247,24 +344,36 @@ begin
             if (bus_reg_read = '1') then
                bus_reg_done <= '1';
                case (bus_reg_addr(19 downto 2) & "00") is
-                  when x"00000" => bus_reg_dataRead(23 downto 0) <= std_logic_vector(PI_DRAM_ADDR);    
-                  when x"00004" => bus_reg_dataRead(31 downto 0) <= std_logic_vector(PI_CART_ADDR);    
-                  when x"00008" => bus_reg_dataRead( 6 downto 0) <= (others => '1'); -- maybe different for reads < 8?   
-                  when x"0000C" => bus_reg_dataRead( 6 downto 0) <= std_logic_vector(PI_WR_LEN);
+                  when x"00000" =>
+                     bus_reg_dataRead(23 downto 0) <= std_logic_vector(PI_DRAM_ADDR);
+                  when x"00004" =>
+                     bus_reg_dataRead(31 downto 0) <= std_logic_vector(PI_CART_ADDR);
+                  when x"00008" =>
+                     bus_reg_dataRead( 6 downto 0) <= (others => '1'); -- maybe different for reads < 8?
+                  when x"0000C" =>
+                     bus_reg_dataRead( 6 downto 0) <= std_logic_vector(PI_WR_LEN);
                   when x"00010" => 
                      bus_reg_dataRead(0) <= PI_STATUS_DMAbusy;    
                      bus_reg_dataRead(1) <= PI_STATUS_IObusy;    
                      bus_reg_dataRead(2) <= PI_STATUS_DMAerror;    
-                     bus_reg_dataRead(3) <= PI_STATUS_irq; 
-                  when x"00014" => bus_reg_dataRead(7 downto 0) <= std_logic_vector(PI_BSD_DOM1_LAT);    
-                  when x"00018" => bus_reg_dataRead(7 downto 0) <= std_logic_vector(PI_BSD_DOM1_PWD);    
-                  when x"0001C" => bus_reg_dataRead(3 downto 0) <= std_logic_vector(PI_BSD_DOM1_PGS);    
-                  when x"00020" => bus_reg_dataRead(1 downto 0) <= std_logic_vector(PI_BSD_DOM1_RLS);    
-                  when x"00024" => bus_reg_dataRead(7 downto 0) <= std_logic_vector(PI_BSD_DOM2_LAT);    
-                  when x"00028" => bus_reg_dataRead(7 downto 0) <= std_logic_vector(PI_BSD_DOM2_PWD);    
-                  when x"0002C" => bus_reg_dataRead(3 downto 0) <= std_logic_vector(PI_BSD_DOM2_PGS);    
-                  when x"00030" => bus_reg_dataRead(1 downto 0) <= std_logic_vector(PI_BSD_DOM2_RLS);  
-                  when others   => null;                  
+                     bus_reg_dataRead(3) <= PI_STATUS_irq;
+                  when x"00014" =>
+                     bus_reg_dataRead(7 downto 0) <= std_logic_vector(PI_BSD_DOM1_LAT);
+                  when x"00018" =>
+                     bus_reg_dataRead(7 downto 0) <= std_logic_vector(PI_BSD_DOM1_PWD);
+                  when x"0001C" =>
+                     bus_reg_dataRead(3 downto 0) <= std_logic_vector(PI_BSD_DOM1_PGS);
+                  when x"00020" =>
+                     bus_reg_dataRead(1 downto 0) <= std_logic_vector(PI_BSD_DOM1_RLS);
+                  when x"00024" =>
+                     bus_reg_dataRead(7 downto 0) <= std_logic_vector(PI_BSD_DOM2_LAT);
+                  when x"00028" =>
+                     bus_reg_dataRead(7 downto 0) <= std_logic_vector(PI_BSD_DOM2_PWD);
+                  when x"0002C" =>
+                     bus_reg_dataRead(3 downto 0) <= std_logic_vector(PI_BSD_DOM2_PGS);
+                  when x"00030" =>
+                     bus_reg_dataRead(1 downto 0) <= std_logic_vector(PI_BSD_DOM2_RLS);
+                  when others =>
                end case;
             end if;
 
@@ -319,8 +428,8 @@ begin
             
             
             -- PI state machine
-            bus_cart_done     <= '0';
-            bus_cart_dataRead <= (others => '0');
+            pi_bus_cart_done     <= '0';
+            pi_bus_cart_dataRead <= (others => '0');
             sdram_request     <= '0';
             rdram_request     <= '0';
             
@@ -336,19 +445,23 @@ begin
             if (bus_cart_write = '1') then
                bus_cart_write_latched <= '1';
             end if;
-            
+
             case (state) is
             
                when IDLE =>
                
                   flash_addrB  <= (others => '0');
                   
-                  if (bus_cart_read_latched = '1') then
+                  if (dd_hold_pi = '1') then
+                     null;
+                  elsif (bus_cart_read_latched = '1') then
                      bus_cart_read_latched <= '0';
-                     bus_cart_dataRead     <= std_logic_vector(bus_cart_addr(15 downto 0)) & std_logic_vector(bus_cart_addr(15 downto 0)); -- open bus is default
-                     
-                     if (bus_cart_addr(28 downto 0) < 16#08000000#) then -- DD
-                        bus_cart_done <= '1';
+                     pi_bus_cart_dataRead  <= std_logic_vector(bus_cart_addr(15 downto 0)) & std_logic_vector(bus_cart_addr(15 downto 0)); -- open bus is default
+
+                     if (dd_direct_selected = '1') then
+                        null;
+                     elsif (bus_cart_addr(28 downto 0) < 16#08000000#) then
+                        pi_bus_cart_done <= '1';
                      elsif (bus_cart_addr(28 downto 0) < 16#10000000#) then -- SRAM+FLASH                          
                         if (SAVETYPE = "011" or SAVETYPE = "100") then
                            state         <= READSRAM;
@@ -360,20 +473,20 @@ begin
                               sdram_address <= (9x"0" &  bus_cart_addr(16 downto 2) & "00") + to_unsigned(16#400000#, 27);
                            end if;
                         elsif (SAVETYPE = "101") then
-                           bus_cart_done     <= '1';
+                           pi_bus_cart_done     <= '1';
                            if (bus_cart_addr(2) = '0') then
-                              bus_cart_dataRead <= flash_statusword(63 downto 32);
+                              pi_bus_cart_dataRead <= flash_statusword(63 downto 32);
                            else
-                              bus_cart_dataRead <= flash_statusword(31 downto 0);
+                              pi_bus_cart_dataRead <= flash_statusword(31 downto 0);
                            end if;
                         else 
-                           bus_cart_done <= '1';
+                           pi_bus_cart_done <= '1';
                         end if;
                      elsif (bus_cart_addr(28 downto 0) < (16#10000000# + to_integer(cartSize)) and cartAvailable = '1') then -- game rom
                         if (PI_STATUS_IObusy = '1') then
                            PI_STATUS_IObusy  <= '0';
-                           bus_cart_dataRead <= writtenData;
-                           bus_cart_done     <= '1';
+                           pi_bus_cart_dataRead <= writtenData;
+                           pi_bus_cart_done     <= '1';
                         else
                            state         <= READROM;
                            sdram_request <= '1';
@@ -385,7 +498,7 @@ begin
                            end if;
                         end if;
                      else
-                        bus_cart_done <= '1';
+                        pi_bus_cart_done <= '1';
                      end if;
                      
                   elsif (bus_cart_write_latched = '1') then
@@ -402,8 +515,10 @@ begin
                         end if;
                      end if;
 
-                     if (bus_cart_addr(28 downto 0) < 16#08000000#) then -- DD
-                        bus_cart_done <= '1';
+                     if (dd_direct_selected = '1') then
+                        null;
+                     elsif (bus_cart_addr(28 downto 0) < 16#08000000#) then
+                        pi_bus_cart_done <= '1';
                      elsif (bus_cart_addr(28 downto 0) < 16#10000000#) then -- SRAM+FLASH  
                         if (SAVETYPE = "011" or SAVETYPE = "100") then
                            change_sram      <= '1';
@@ -418,7 +533,7 @@ begin
                               sdram_address <= (9x"0" &  bus_cart_addr(16 downto 2) & "00") + to_unsigned(16#400000#, 27);
                            end if;
                         elsif (SAVETYPE = "101") then
-                           bus_cart_done <= '1';
+                           pi_bus_cart_done <= '1';
                            if (bus_cart_addr(26 downto 0) /= 0) then
                               case (bus_cart_dataWrite(31 downto 24)) is
                                  when x"4B" => -- set erase offset
@@ -437,7 +552,7 @@ begin
                                  
                                  when x"D2" => -- execute
                                     if (flashState = FLASHERASE or flashState = FLASHWRITE) then
-                                       bus_cart_done     <= '0';
+                                       pi_bus_cart_done     <= '0';
                                        state             <= WRITEFLASH;
                                     end if;
                                  
@@ -453,10 +568,10 @@ begin
                               end case;
                            end if;
                         else
-                           bus_cart_done <= '1';
+                           pi_bus_cart_done <= '1';
                         end if;
                      else
-                        bus_cart_done <= '1';
+                        pi_bus_cart_done <= '1';
                      end if;
                      
                   elsif (PI_STATUS_DMAbusy = '1') then
@@ -512,24 +627,24 @@ begin
                      
                   end if;
             
-               when READROM => 
+               when READROM =>
                   if (sdram_done = '1') then
                      state             <= IDLE;
-                     bus_cart_dataRead <= sdram_dataRead(7 downto 0) & sdram_dataRead(15 downto 8) & sdram_dataRead(23 downto 16) & sdram_dataRead(31 downto 24);
-                     bus_cart_done     <= '1';
+                     pi_bus_cart_dataRead <= sdram_dataRead(7 downto 0) & sdram_dataRead(15 downto 8) & sdram_dataRead(23 downto 16) & sdram_dataRead(31 downto 24);
+                     pi_bus_cart_done     <= '1';
                   end if;
                   
                when READSRAM => 
                   if (sdram_done = '1') then
                      state             <= IDLE;
-                     bus_cart_dataRead <= sdram_dataRead(7 downto 0) & sdram_dataRead(15 downto 8) & sdram_dataRead(23 downto 16) & sdram_dataRead(31 downto 24);
-                     bus_cart_done     <= '1';
+                     pi_bus_cart_dataRead <= sdram_dataRead(7 downto 0) & sdram_dataRead(15 downto 8) & sdram_dataRead(23 downto 16) & sdram_dataRead(31 downto 24);
+                     pi_bus_cart_done     <= '1';
                   end if;               
                   
                when WRITESRAM => 
                   if (sdram_done = '1') then
                      state             <= IDLE;
-                     bus_cart_done     <= '1';
+                     pi_bus_cart_done     <= '1';
                   end if;
                   
                when WRITEFLASH =>
@@ -550,7 +665,7 @@ begin
                   if (sdram_done = '1') then
                      if (flash_addrB = 5x"0") then
                         state           <= IDLE;
-                        bus_cart_done   <= '1';
+                        pi_bus_cart_done   <= '1';
                      else
                         state           <= WRITEFLASH;
                      end if;
@@ -561,14 +676,20 @@ begin
                      state         <= DMA_READCART;
                      sdram_request <= '1';
                      sdram_rnw     <= '1';
-                     
+
                      dma_isflashread <= '0';
-                     
+
                      rom_slow_sum <= rom_slow_sum + to_integer(PI_BSD_PWD) + to_integer(PI_BSD_RLS) + 2;
-                     
-                     if (PI_CART_ADDR(28 downto 0) < 16#08000000#) then -- DD
-                        report "DD DMA read not implemented" severity failure;
-                        error_PI      <= '1';
+
+                     if (dd_dma_reg_selected = '1') then -- DD registers
+                        state         <= DMA_READDD;
+                        sdram_request <= '0';
+                     elsif (dd_dma_ipl_selected = '1') then -- DD IPL ROM
+                        -- Source the IPL aperture from the dedicated DDR copy, not SDRAM.
+                        state         <= DMA_READCART;
+                        sdram_request <= '0';
+                     elsif (PI_CART_ADDR(28 downto 0) < 16#08000000#) then
+                        null;
                      elsif (PI_CART_ADDR(28 downto 0) < 16#10000000#) then -- SRAM+FLASH  
                         if (SAVETYPE = "011") then
                            sdram_address <= (11x"0" & PI_CART_ADDR(14 downto 1) & '0') + to_unsigned(16#400000#, 27);
@@ -601,9 +722,68 @@ begin
                      end if;
                   end if;
                   
+               when DMA_READDD =>
+                  state <= DMA_READDD_WAIT;
+
+               when DMA_READDD_WAIT =>
+                  state <= DMA_READDD_DATA;
+
+               when DMA_READDD_DATA =>
+                  state        <= COPYDMABLOCK;
+                  PIfifo_Din(84 downto 64)   <= std_logic_vector(PI_DRAM_ADDR(23 downto 3));
+
+                  copycnt      <= copycnt + 2;
+                  PI_CART_ADDR <= PI_CART_ADDR + 2;
+                  if (PI_LEN > 2) then
+                     PI_LEN    <= PI_LEN - 2;
+                  else
+                     PI_LEN    <= (others => '0');
+                  end if;
+
+                  if (PI_DRAM_valid = '0' or ((PI_DRAM_ADDR(17 downto 0) and PI_DRAM_pagemask) /= (PI_DRAM_page and PI_DRAM_pagemask))) then
+                     PI_DRAM_page  <= PI_DRAM_ADDR(17 downto 0);
+                     rom_slow_sum  <= rom_slow_sum + to_integer(PI_BSD_LAT);
+                     PI_DRAM_valid <= '1';
+                  end if;
+
+                  writemask_new := "00";
+                  if (copycnt < maxram) then
+                     writemask_new(0) := '1';
+                     writemask_new(1) := '1';
+                  end if;
+                  if (first128 = '1' and blocklength < 127 - misAlignSave) then
+                     if (copycnt >= maxram - 1) then
+                        writemask_new(1) := '0';
+                     end if;
+                  end if;
+
+                  if (writemask_new(0) = '1') then
+                     PIfifo_Wr   <= '1';
+                  end if;
+
+                  if (writemask_new(1) = '1') then
+                     PI_DRAM_ADDR <= PI_DRAM_ADDR + 2;
+                  elsif (writemask_new(0) = '1') then
+                     PI_DRAM_ADDR <= PI_DRAM_ADDR + 1;
+                  end if;
+
+                  if (PI_DRAM_ADDR(0) = '1' and writemask_new /= "00") then
+                     report "Unaligned PI DMA write" severity failure;
+                  end if;
+
+                  dma_fifoData := dd_dma_dataRead;
+
+                  case (PI_DRAM_ADDR(2 downto 1)) is
+                     when "00" => PIfifo_Din(15 downto  0) <= dma_fifoData; PIfifo_Din(92 downto 85) <= "000000" & writemask_new;
+                     when "01" => PIfifo_Din(31 downto 16) <= dma_fifoData; PIfifo_Din(92 downto 85) <= "0000" & writemask_new & "00";
+                     when "10" => PIfifo_Din(47 downto 32) <= dma_fifoData; PIfifo_Din(92 downto 85) <= "00" & writemask_new & "0000";
+                     when "11" => PIfifo_Din(63 downto 48) <= dma_fifoData; PIfifo_Din(92 downto 85) <= writemask_new & "000000";
+                     when others => null;
+                  end case;
+
                when DMA_READCART =>
-                  if (sdram_done = '1') then
-                  
+                  if ((dd_dma_ipl_selected = '0' and sdram_done = '1') or dd_dma_ipl_done = '1') then
+
                      state        <= COPYDMABLOCK;
                      PIfifo_Din(84 downto 64)   <= std_logic_vector(PI_DRAM_ADDR(23 downto 3));
                   
@@ -646,8 +826,21 @@ begin
                         report "Unaligned PI DMA write" severity failure;  
                      end if;
                      
-                     dma_readData := sdram_dataRead(15 downto 0);
-                     
+                     if (dd_dma_ipl_done = '1') then
+                        -- IPL aperture sourced from the DDR copy: raw big-endian
+                        -- halfword selected by the cart address, matching the
+                        -- byte-copy semantics of the SDRAM cartridge DMA path.
+                        case (PI_CART_ADDR(2 downto 1)) is
+                           when "00" => dma_readData := dd_dma_ipl_dataRead(15 downto 0);
+                           when "01" => dma_readData := dd_dma_ipl_dataRead(31 downto 16);
+                           when "10" => dma_readData := dd_dma_ipl_dataRead(47 downto 32);
+                           when "11" => dma_readData := dd_dma_ipl_dataRead(63 downto 48);
+                           when others => null;
+                        end case;
+                     else
+                        dma_readData := sdram_dataRead(15 downto 0);
+                     end if;
+
                      if (dma_isflashread = '1') then
                         if (flashState = FLASHSTATUS) then
                            case (PI_CART_ADDR(2 downto 1)) is
@@ -717,9 +910,10 @@ begin
                      PI_DRAM_ADDR <= PI_DRAM_ADDR + 2;
                      PI_CART_ADDR <= PI_CART_ADDR + 2;
                         
-                     if (PI_CART_ADDR(28 downto 0) < 16#08000000#) then -- DD
-                        report "DD DMA write not implemented" severity failure;
-                        error_PI      <= '1';
+                     if (dd_dma_reg_selected = '1') then -- DD registers
+                        null;
+                     elsif (PI_CART_ADDR(28 downto 0) < 16#08000000#) then
+                        null;
                      elsif (PI_CART_ADDR(28 downto 0) < 16#10000000#) then -- SRAM+FLASH  
                         if (SAVETYPE = "011" or SAVETYPE = "100") then
                            change_sram   <= '1';
@@ -747,6 +941,11 @@ begin
                   
                   
             end case;
+
+            if (dd_direct_done = '1') then
+               pi_bus_cart_dataRead <= dd_direct_dataRead;
+               pi_bus_cart_done <= '1';
+            end if;
 
          end if;
       end if;

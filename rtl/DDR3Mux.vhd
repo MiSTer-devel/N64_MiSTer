@@ -8,7 +8,7 @@ use IEEE.numeric_std.all;
 
 package pDDR3 is
 
-   constant DDR3MUXCOUNT : integer := 8;
+   constant DDR3MUXCOUNT : integer := 9;
    
    constant DDR3MUX_RSP    : integer := 0;
    constant DDR3MUX_RDP    : integer := 1;
@@ -18,6 +18,7 @@ package pDDR3 is
    constant DDR3MUX_MEMMUX : integer := 5;
    constant DDR3MUX_AI     : integer := 6;
    constant DDR3MUX_VI     : integer := 7;
+   constant DDR3MUX_DD     : integer := 8;
    
    type tDDDR3Single     is array(0 to DDR3MUXCOUNT - 1) of std_logic;
    type tDDDR3ReqAddr    is array(0 to DDR3MUXCOUNT - 1) of unsigned(27 downto 0);
@@ -33,8 +34,10 @@ end package;
 
 --   0..8   Mbyte = RDRAM
 --   8..8   Mbyte = RMRAM read behind area 
+--  12..16  Mbyte = 64DD IPL mirror
 --  16..32  Mbyte = VI FB mode area
---  32..96  Mbyte = N64 ROM fastload area 
+--  32..96  Mbyte = N64 ROM fastload area
+--  96..192 Mbyte = 64DD disk fastload area
 -- 192..256 Mbyte = Savestates
 
 library IEEE;
@@ -323,7 +326,7 @@ begin
                      
                      -- writing/reading behind ram
                      if ((RAMSIZE8_2x = '1' and rdram_address(activeIndex)(27 downto 23) > 0) or (RAMSIZE8_2x = '0' and rdram_address(activeIndex)(27 downto 22) > 0)) then
-                        if (activeIndex /= DDR3MUX_SS) then
+                        if (activeIndex /= DDR3MUX_SS and activeIndex /= DDR3MUX_DD) then
                            if (activeIndex /= DDR3MUX_VI) then -- VI reading cannot damage and request outside will happen, e.g. reading previous line with framebuffer at Address 0
                               error_outReq   <= '1';
                            end if;

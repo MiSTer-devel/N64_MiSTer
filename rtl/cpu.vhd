@@ -28,6 +28,7 @@ entity cpu is
       DISABLE_DTLBMINI      : in  std_logic;
 
       irqRequest            : in  std_logic;
+      irqCartRequest        : in  std_logic;
       cpuPaused             : in  std_logic;
       
       error_instr           : out std_logic := '0';
@@ -3334,6 +3335,7 @@ begin
       error_TLB               => error_TLB,
       
       irqRequest              => irqRequest,
+      irqCartRequest          => irqCartRequest,
       irqTrigger              => irqTrigger,
       decode_irq              => decode_irq,
 

@@ -89,6 +89,10 @@ entity n64top is
       cartAvailable           : in  std_logic;
       romcopy_start           : in  std_logic;
       romcopy_size            : in  unsigned(26 downto 0);
+      ddDiskAvailable         : in  std_logic;
+      ddIplAvailable          : in  std_logic;
+      ddDevMode               : in  std_logic;
+      hpsRTC                  : in  std_logic_vector(64 downto 0);
       
       sdram_ena               : out std_logic;
       sdram_rnw               : out std_logic;
@@ -100,7 +104,7 @@ entity n64top is
       sdram_dataRead          : in  std_logic_vector(31 downto 0);
       
       -- PAD
-      PADTYPE0                : in  std_logic_vector(2 downto 0); -- 000 = normal, 001 = empty, 010 = cpak, 011 = rumble, 100 = snac, 101 = transfer pak
+      PADTYPE0                : in  std_logic_vector(2 downto 0); -- 000 = normal, 001 = empty, 010 = cpak, 011 = rumble, 100 = snac, 101 = transfer pak, 110 = keyboard, 111 = mouse
       PADTYPE1                : in  std_logic_vector(2 downto 0);
       PADTYPE2                : in  std_logic_vector(2 downto 0);
       PADTYPE3                : in  std_logic_vector(2 downto 0);
@@ -250,6 +254,7 @@ architecture arch of n64top is
   
    -- irq
    signal irqRequest             : std_logic;
+   signal irqCartRequest         : std_logic;
    signal irqVector              : std_logic_vector(5 downto 0);        
    
    -- DDR3/RDRAM mux
@@ -1018,14 +1023,20 @@ begin
       clk1x                => clk1x,        
       ce                   => ce_1x,           
       reset                => reset_intern_1x, 
+      second_ena           => second_ena,
       
       FASTROM              => FASTROM,
       SAVETYPE             => SAVETYPE,
       fastDecay            => is_simu,
       cartAvailable        => cartAvailable,
       cartSize             => romcopy_size,
+      ddDiskAvailable      => ddDiskAvailable,
+      ddIplAvailable       => ddIplAvailable,
+      ddDevMode            => ddDevMode,
+      hpsRTC               => hpsRTC,
 
       irq_out              => irqVector(4),
+      dd_irq_out           => irqCartRequest,
       
       error_PI             => error_PI,
       
@@ -1047,6 +1058,15 @@ begin
       rdram_burstcount     => rdram_burstcount(DDR3MUX_PI),
       rdram_done           => rdram_done(DDR3MUX_PI),      
       rdram_dataRead       => rdram_dataRead,      
+
+      ddram_request        => rdram_request(DDR3MUX_DD),
+      ddram_rnw            => rdram_rnw(DDR3MUX_DD),
+      ddram_address        => rdram_address(DDR3MUX_DD),
+      ddram_burstcount     => rdram_burstcount(DDR3MUX_DD),
+      ddram_writeMask      => rdram_writeMask(DDR3MUX_DD),
+      ddram_dataWrite      => rdram_dataWrite(DDR3MUX_DD),
+      ddram_done           => rdram_done(DDR3MUX_DD),
+      ddram_dataRead       => rdram_dataRead,
       
       PIfifo_Din           => PIfifo_Din,    
       PIfifo_Wr            => PIfifo_Wr,   
@@ -1097,6 +1117,10 @@ begin
             PADTYPE_latched1 <= PADTYPE1;
             PADTYPE_latched2 <= PADTYPE2;
             PADTYPE_latched3 <= PADTYPE3;
+            -- TransferPak is only supported on port 1.
+            if (PADTYPE1 = "101") then PADTYPE_latched1 <= "000"; end if;
+            if (PADTYPE2 = "101") then PADTYPE_latched2 <= "000"; end if;
+            if (PADTYPE3 = "101") then PADTYPE_latched3 <= "000"; end if;
             -- force pause between rumble and cpak
             if (pakPause0 > 0) then PADTYPE_latched0 <= "000"; pad_A_filtered(0) <= '0'; pad_B_filtered(0) <= '0'; pad_START_filtered(0) <= '0'; end if;
             if (pakPause1 > 0) then PADTYPE_latched1 <= "000"; pad_A_filtered(1) <= '0'; pad_B_filtered(1) <= '0'; pad_START_filtered(1) <= '0'; end if;
@@ -1187,6 +1211,8 @@ begin
       softreset            => PIF_Softreset,
       
       second_ena           => second_ena,
+
+      hpsRTC               => hpsRTC,
 
       PIFCOMPARE           => PIFCOMPARE,
       ISPAL                => ISPAL,
@@ -1602,6 +1628,7 @@ begin
       DISABLE_DTLBMINI     => DISABLE_DTLBMINI, 
             
       irqRequest           => irqRequest,
+      irqCartRequest       => irqCartRequest,
       cpuPaused            => '0',
          
       error_instr          => errorCPU_instr,

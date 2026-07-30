@@ -181,7 +181,8 @@ assign HDMI_BOB_DEINT = 0;
 assign AUDIO_S   = 1;
 assign AUDIO_MIX = status[8:7];
 
-assign LED_USER  = cartN64_download | cartGB_download | bk_pending;
+assign LED_USER  = cartN64_download | cartGB_download | cartDD_download |
+                   cartDDIpl_download | cartDDIplData_download | bk_pending;
 assign LED_DISK  = 0;
 assign LED_POWER = 0;
 assign VGA_SCALER= 0;
@@ -294,7 +295,9 @@ wire reset_or = RESET | buttons[1] | status[0];
 parameter CONF_STR = {
 	"N64;SS3C000000:1000000;",
    "FS1,N64z64n64v64,Load,32000000;",
-   "F2,GBCGB ,Load GB-Transfer;",
+	"F3,NDDndd,Load 64DD Disk,36000000;",
+   "F4,N64z64n64v64binrom,Load 64DD IPL,30C00000;",
+	"F2,GBCGB ,Load GB-Transfer;",
    "-;",
    "C,Cheats;",
    "O[103],Cheats Enabled,Yes,No;",
@@ -309,10 +312,10 @@ parameter CONF_STR = {
 	//"RH,Save state (Alt-F1);",
 	//"RI,Restore state (F1);",
 	"-;",
-   "O[51:49],Pad 1 Type,N64Pad,None,ControllerPak,RumblePak,SNAC,TransferPak,Keyboard;",
-   "O[54:52],Pad 2 Type,N64Pad,None,ControllerPak,RumblePak,SNAC;",
-   "O[57:55],Pad 3 Type,N64Pad,None,ControllerPak,RumblePak,SNAC;",
-   "O[60:58],Pad 4 Type,N64Pad,None,ControllerPak,RumblePak,SNAC;",
+   "O[51:49],Pad 1 Type,N64Pad,None,ControllerPak,RumblePak,SNAC,TransferPak,Keyboard,Mouse;",
+   "O[54:52],Pad 2 Type,N64Pad,None,ControllerPak,RumblePak,SNAC,Unavailable,Keyboard,Mouse;",
+   "O[57:55],Pad 3 Type,N64Pad,None,ControllerPak,RumblePak,SNAC,Unavailable,Keyboard,Mouse;",
+   "O[60:58],Pad 4 Type,N64Pad,None,ControllerPak,RumblePak,SNAC,Unavailable,Keyboard,Mouse;",
    "O[92],Swap Analog<->DPAD,Off,On;",
    "O[86:84],Mouse for P1,Off,Buttons ABZ,Buttons ZAB,Buttons ZBA;",
    "O[62:61],Dual Controller,Off,P1->P2,P1->P3;",
@@ -454,6 +457,7 @@ wire        img_readonly;
 wire [31:0] img_size;
 
 wire [3:0] rumble;
+wire [64:0] RTC;
 
 hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 (
@@ -511,6 +515,8 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 	.img_mounted(img_mounted),
 	.img_readonly(img_readonly),
 	.img_size(img_size),
+
+	.RTC(RTC),
    
    .direct_video(DIRECT_VIDEO)
 );
@@ -548,7 +554,7 @@ end
 
 ////////////////////////////  ROM download  ///////////////////////////////////
 
-reg [26:0] romcopy_size;
+reg [26:0] romcopy_size = 0;
 reg        romcopy_start = 0;
 
 reg [26:0] ramdownload_wraddr;
@@ -557,28 +563,64 @@ reg        ramdownload_wr;
 wire       ramdownload_ready;
 reg        cartN64_download;
 reg        cartGB_download;
+reg        cartDD_download;
+reg        cartDDIpl_download;
+reg        cartDDIplData_download;
 reg        cart_loaded = 0;
+reg        ddDisk_loaded = 0;
+reg        ddIpl_loaded = 0;
 
 localparam CARTN64_START = 16777216;
 localparam CARTGB_START  = 8388608;
+localparam [26:0] N64DD_IPL_SIZE = 27'd4194304;
 
 always @(posedge clk_1x) begin
 
    cartN64_download     <= ioctl_download & (ioctl_index[5:0] == 1);
    cartGB_download      <= ioctl_download & (ioctl_index[5:0] == 2);
+   cartDD_download      <= ioctl_download & (ioctl_index[5:0] == 3);
+   cartDDIpl_download   <= ioctl_download & (ioctl_index[5:0] == 4);
+   cartDDIplData_download <= ioctl_download & (ioctl_index[5:0] == 5);
    
    ioctl_download_1 <= ioctl_download;
 
    romcopy_start <= 0;
+   ioctl_wait <= 0;
+   ramdownload_wr <= 0;
+
+   if (cartN64_download) begin
+      cart_loaded <= 0;
+   end
+   if (cartDD_download) begin
+      ddDisk_loaded <= 0;
+   end
+   if (cartDDIpl_download) begin
+      cart_loaded  <= 0;
+      ddIpl_loaded <= 0;
+   end
+   if (cartDDIplData_download) begin
+      ddIpl_loaded <= 0;
+   end
+
    if (~ioctl_download && ioctl_download_1 && ioctl_index[5:0] == 1) begin
       romcopy_size    <= ioctl_addr;
       romcopy_start   <= 1;
+      cart_loaded     <= |ioctl_addr;
+   end
+   if (~ioctl_download && ioctl_download_1 && ioctl_index[5:0] == 3) begin
+      ddDisk_loaded <= |ioctl_addr;
+   end
+   if (~ioctl_download && ioctl_download_1 && ioctl_index[5:0] == 4) begin
+      romcopy_size  <= N64DD_IPL_SIZE;
+      romcopy_start <= 1;
+      cart_loaded   <= 1;
+      ddIpl_loaded  <= 1;
+   end
+   if (~ioctl_download && ioctl_download_1 && ioctl_index[5:0] == 5) begin
+      ddIpl_loaded <= |ioctl_addr;
    end
 
-	ramdownload_wr <= 0;
-	if(cartN64_download) begin
-      cart_loaded <= 1;
-   end else if(cartGB_download) begin
+	if(cartGB_download) begin
       if (ioctl_wr) begin
          if(~ioctl_addr[1]) begin
             ramdownload_wrdata[15:0] <= ioctl_dout;
@@ -590,8 +632,6 @@ always @(posedge clk_1x) begin
          end
       end
       if(ramdownload_ready) ioctl_wait <= 0;
-   end else begin 
-      ioctl_wait <= 0;
 	end
    
 end
@@ -808,6 +848,10 @@ n64top
    .cartAvailable     (cart_loaded       ),
    .romcopy_start     (romcopy_start     ),
    .romcopy_size      (romcopy_size      ),
+   .ddDiskAvailable   (ddDisk_loaded     ),
+   .ddIplAvailable    (ddIpl_loaded      ),
+   .ddDevMode         (status[107]       ),
+   .hpsRTC            (RTC               ),
    
    .sdram_ena         (sdram_ena         ),
    .sdram_rnw         (sdram_rnw         ),

@@ -25,6 +25,7 @@ set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) RSP_divsqr
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) RSP_vector.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) RSP_core.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) RSP.vhd ]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) PI_DD.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) PI.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) VI_package.vhd ]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) VI_overlay.vhd ]
