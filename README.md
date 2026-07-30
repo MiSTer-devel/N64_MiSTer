@@ -11,9 +11,9 @@ SDRAM of any size is required.
   * Nintendo 64 cartridge support (`.z64`, `.n64`, `.v64`)
   * Standalone 64DD games and cartridge expansion disks (`.ndd`)
   * Cartridge and Disk saving
-  * 64DD RTC
+  * 64DD and Dobutsu no Mori/Animal Forest RTC
   * Automatic cartridge region, CIC, save type and accessory detection
-  * Controller Pak, Rumble Pak, Transfer Pak, SNAC and Randnet keyboard support
+  * Controller Pak, Rumble Pak, Transfer Pak, SNAC, Randnet keyboard and Mouse support
   * Game cheats
   * Original VI and Clean HDMI video paths
   * Configurable VI processing, texture filtering, dithering and aspect ratio
@@ -110,9 +110,10 @@ The following pad types can be assigned through the OSD:
   * RumblePak
   * TransferPak
   * SNAC
-  * Keyboard (Pad 1 only)
+  * Keyboard
+  * Mouse
 
-The keyboard option emulates the Randnet keyboard. Mouse buttons can also be mapped to the Pad 1 A, B and Z buttons.
+Mouse buttons can also be mapped to the Pad 1 A, B and Z buttons.
 
 ## Video Output
 
