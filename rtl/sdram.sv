@@ -8,14 +8,14 @@
 // This source file is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published
 // by the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version. 
+// (at your option) any later version.
 //
 // This source file is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of 
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the 
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License 
+// You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module sdram
@@ -26,7 +26,7 @@ module sdram
 	inout  reg [15:0] SDRAM_DQ,    // 16 bit bidirectional data bus
 	output reg [12:0] SDRAM_A,     // 13 bit multiplexed address bus
 	output            SDRAM_DQML,  // two byte masks
-	output            SDRAM_DQMH,  // 
+	output            SDRAM_DQMH,  //
 	output reg  [1:0] SDRAM_BA,    // two banks
 	output            SDRAM_nCS,   // a single chip select
 	output            SDRAM_nWE,   // write enable
@@ -43,7 +43,7 @@ module sdram
    input      [3:0]  ch1_be,
 	output reg        ch1_ready,
 	output reg        ch1_reqprocessed,
-	
+
 	input      [26:0] ch2_addr,    // 25 bit address for 8bit mode. addr[0] = 0 for 16bit mode for correct operations.
 	output reg [31:0] ch2_dout,    // data output to cpu
 	input      [31:0] ch2_din,     // data input from cpu
@@ -126,7 +126,7 @@ always @(posedge clk) begin
 	ch1_ready <= 0;
 	ch2_ready <= 0;
 	ch3_ready <= 0;
-   
+
    ch1_reqprocessed <= 0;
 
 	refresh_count <= refresh_count+1'b1;
@@ -195,7 +195,7 @@ always @(posedge clk) begin
 			// mask possible refresh to reduce colliding.
 			if (refresh_count > cycles_per_refresh) begin
 				//------------------------------------------------------------------------
-				//-- Start the refresh cycle. 
+				//-- Start the refresh cycle.
 				//-- This tasks tRFC (66ns), so 7 idle cycles are needed @ 120MHz
 				//------------------------------------------------------------------------
 				state    <= STATE_RFSH;
@@ -276,7 +276,7 @@ always @(posedge clk) begin
 		end
 
 		STATE_RW2: begin
-			state          <= STATE_IDLE_2;
+			state          <= STATE_IDLE_3;
 			SDRAM_A[10]    <= 1;
 			SDRAM_A[0]     <= 1;
 			command        <= CMD_WRITE;
@@ -285,7 +285,6 @@ always @(posedge clk) begin
          if(ch == 0)      ch1_ready <= 1;
 			else if(ch == 1) ch2_ready <= 1;
 			else             ch3_ready <= 1;
-         
 		end
 	endcase
 
