@@ -492,9 +492,9 @@ begin
                            sdram_request <= '1';
                            sdram_rnw     <= '1';
                            if (bus_cart_addr(1) = '1') then
-                              sdram_address <= (bus_cart_addr(25 downto 2) & "10") + to_unsigned(16#1000004#, 27);
+                              sdram_address <= (bus_cart_addr(26 downto 2) & "10") + to_unsigned(16#1000004#, 27);
                            else
-                              sdram_address <= (bus_cart_addr(25 downto 2) & "00") + to_unsigned(16#1000000#, 27);
+                              sdram_address <= (bus_cart_addr(26 downto 2) & "00") + to_unsigned(16#1000000#, 27);
                            end if;
                         end if;
                      else
@@ -700,7 +700,7 @@ begin
                            dma_isflashread <= '1';
                         end if;  
                      elsif (PI_CART_ADDR(28 downto 0) < (16#10000000# + to_integer(cartSize))) then -- game rom
-                        sdram_address <= (PI_CART_ADDR(25 downto 1) & '0') + to_unsigned(16#1000000#, 27);
+                        sdram_address <= (PI_CART_ADDR(26 downto 1) & '0') + to_unsigned(16#1000000#, 27);
                      else
                         --report "Openbus DMA read not implemented" severity failure;
                         error_PI      <= '1';
