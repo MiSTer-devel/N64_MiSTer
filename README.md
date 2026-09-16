@@ -65,6 +65,13 @@ panel buttons for E-N, Kan, Pon, Chi, Reach, Ron, and Start. Dedicated Coin,
 Service, and Test controls use the extended joystick packet. Start+Pon,
 Start+Chi, and Start+Reach remain available as alternate cabinet-input chords.
 
+Aleck64 mode also supports MAME's default keyboard controls. Player 1 uses the
+arrow keys, left Ctrl/Alt, Space, and left Shift; Player 2 uses R/F/D/G and
+A/S/Q/W. The 1/2 keys start players, 5/6 insert coins, 9 is Service 1, and F2
+enters the test/service mode. PIF games translate keyboard directions to the
+N64 analog stick. Mahjong games use MAME's panel defaults: A-N, left Ctrl for
+Kan, left Alt for Pon, Space for Chi, left Shift for Reach, and Z for Ron.
+
 Games with physical DIP banks expose their MAME-defined settings through the
 standard MiSTer **DIP Switches** OSD entry. Vivid Dolls' Controls switch selects
 between its PIF joystick and JAMMA input wiring. Magical Tetris has no physical

@@ -309,7 +309,7 @@ parameter CONF_STR = {
 	//"RH,Save state (Alt-F1);",
 	//"RI,Restore state (F1);",
 	"-;",
-   "H2O[51:49],Pad 1 Type,N64Pad,None,ControllerPak,RumblePak,SNAC,TransferPak,Keyboard;",
+   "H2O[51:49],Pad 1 Type,N64Pad,None,ControllerPak,RumblePak,SNAC,TransferPak;",
    "H2O[54:52],Pad 2 Type,N64Pad,None,ControllerPak,RumblePak,SNAC;",
    "H2O[57:55],Pad 3 Type,N64Pad,None,ControllerPak,RumblePak,SNAC;",
    "H2O[60:58],Pad 4 Type,N64Pad,None,ControllerPak,RumblePak,SNAC;",
@@ -408,6 +408,7 @@ wire        forced_scandoubler;
 wire [31:0] joy;
 wire [31:0] joy_unmod;
 wire [31:0] joy2;
+wire [31:0] joy2_unmod;
 wire [31:0] joy3;
 wire [31:0] joy4;
 
@@ -419,8 +420,6 @@ wire [15:0] joystick_analog_l3;
 wire [24:0] mouse;
 
 wire [10:0] ps2_key;
-wire [2:0]  ps2_kbd_led_status;
-wire [2:0]  ps2_kbd_led_use = 3'b011;
 
 wire        fixed_blanks_off = status[82];
 wire        clean_hdmi;
@@ -584,13 +583,11 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 	.ioctl_upload_index(8'd4),
 	.ioctl_din(aleck_eeprom_upload_data),
 
-   .joystick_0(joy_unmod),
-	.joystick_1(joy2),
+	.joystick_0(joy_unmod),
+	.joystick_1(joy2_unmod),
 	.joystick_2(joy3),
 	.joystick_3(joy4),
 	.ps2_key(ps2_key),
-	.ps2_kbd_led_status(ps2_kbd_led_status),
-	.ps2_kbd_led_use(ps2_kbd_led_use),
 
 	.status(status),
 	.status_in(status_in),
@@ -628,7 +625,172 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
    .direct_video(DIRECT_VIDEO)
 );
 
-assign joy = joy_unmod; //joy_unmod[14] ? 20'b0 : joy_unmod;
+////////////////////////////  MAME keyboard controls  /////////////////////////
+
+// MiSTer PS/2 event bus: [10] toggles for each event, [9] is make/break,
+// [8] marks an E0-prefixed scan code and [7:0] contains the Set 2 code.
+// Keep semantic key state here, then adapt it to each Aleck64 input profile.
+reg [3:0] key_p1_dir = 0;
+reg [3:0] key_p2_dir = 0;
+reg [3:0] key_p1_btn = 0;
+reg [3:0] key_p2_btn = 0;
+reg [1:0] key_start = 0;
+reg [1:0] key_coin = 0;
+reg       key_service = 0;
+reg       key_test = 0;
+reg [22:0] key_mahjong = 0;
+reg       old_ps2_toggle = 0;
+
+wire key_pressed = ps2_key[9];
+wire [8:0] key_code = ps2_key[8:0];
+
+always @(posedge clk_1x) begin
+	old_ps2_toggle <= ps2_key[10];
+
+	if(reset_or || !aleck_mode) begin
+		key_p1_dir  <= 0;
+		key_p2_dir  <= 0;
+		key_p1_btn  <= 0;
+		key_p2_btn  <= 0;
+		key_start   <= 0;
+		key_coin    <= 0;
+		key_service <= 0;
+		key_test    <= 0;
+		key_mahjong <= 0;
+	end else if(old_ps2_toggle != ps2_key[10]) begin
+		if(aleck_input == 2) begin
+			// MAME's default mahjong panel bindings. The Aleck64 panel
+			// exposes A-D on its direction slots and E-Ron on buttons.
+			case(key_code)
+				9'h01C: key_mahjong[ 0] <= key_pressed; // A
+				9'h032: key_mahjong[ 1] <= key_pressed; // B
+				9'h021: key_mahjong[ 2] <= key_pressed; // C
+				9'h023: key_mahjong[ 3] <= key_pressed; // D
+				9'h024: key_mahjong[ 4] <= key_pressed; // E
+				9'h02B: key_mahjong[ 5] <= key_pressed; // F
+				9'h034: key_mahjong[ 6] <= key_pressed; // G
+				9'h033: key_mahjong[ 7] <= key_pressed; // H
+				9'h043: key_mahjong[ 8] <= key_pressed; // I
+				9'h03B: key_mahjong[ 9] <= key_pressed; // J
+				9'h042: key_mahjong[10] <= key_pressed; // K
+				9'h04B: key_mahjong[11] <= key_pressed; // L
+				9'h03A: key_mahjong[12] <= key_pressed; // M
+				9'h031: key_mahjong[13] <= key_pressed; // N
+				9'h014: key_mahjong[14] <= key_pressed; // Kan   (left Ctrl)
+				9'h011: key_mahjong[15] <= key_pressed; // Pon   (left Alt)
+				9'h029: key_mahjong[16] <= key_pressed; // Chi   (Space)
+				9'h012: key_mahjong[17] <= key_pressed; // Reach (left Shift)
+				9'h01A: key_mahjong[18] <= key_pressed; // Ron   (Z)
+				9'h016: key_mahjong[19] <= key_pressed; // Start (1)
+				9'h02E: key_mahjong[20] <= key_pressed; // Coin  (5)
+				9'h046: key_mahjong[21] <= key_pressed; // Service (9)
+				9'h006: key_mahjong[22] <= key_pressed; // Test/service mode (F2)
+				default: ;
+			endcase
+		end else begin
+			case(key_code)
+				9'h175: key_p1_dir[3] <= key_pressed; // P1 Up
+				9'h172: key_p1_dir[2] <= key_pressed; // P1 Down
+				9'h16B: key_p1_dir[1] <= key_pressed; // P1 Left
+				9'h174: key_p1_dir[0] <= key_pressed; // P1 Right
+				9'h014: key_p1_btn[0] <= key_pressed; // P1 Button 1 (left Ctrl)
+				9'h011: key_p1_btn[1] <= key_pressed; // P1 Button 2 (left Alt)
+				9'h029: key_p1_btn[2] <= key_pressed; // P1 Button 3 (Space)
+				9'h012: key_p1_btn[3] <= key_pressed; // P1 Button 4 (left Shift)
+
+				9'h02D: key_p2_dir[3] <= key_pressed; // P2 Up    (R)
+				9'h02B: key_p2_dir[2] <= key_pressed; // P2 Down  (F)
+				9'h023: key_p2_dir[1] <= key_pressed; // P2 Left  (D)
+				9'h034: key_p2_dir[0] <= key_pressed; // P2 Right (G)
+				9'h01C: key_p2_btn[0] <= key_pressed; // P2 Button 1 (A)
+				9'h01B: key_p2_btn[1] <= key_pressed; // P2 Button 2 (S)
+				9'h015: key_p2_btn[2] <= key_pressed; // P2 Button 3 (Q)
+				9'h01D: key_p2_btn[3] <= key_pressed; // P2 Button 4 (W)
+
+				9'h016: key_start[0] <= key_pressed; // P1 Start (1)
+				9'h01E: key_start[1] <= key_pressed; // P2 Start (2)
+				9'h02E: key_coin[0]  <= key_pressed; // Coin 1 (5)
+				9'h036: key_coin[1]  <= key_pressed; // Coin 2 (6)
+				9'h046: key_service  <= key_pressed; // Service 1 (9)
+				9'h006: key_test     <= key_pressed; // Test/service mode (F2)
+				default: ;
+			endcase
+		end
+	end
+end
+
+wire aleck_direct_keyboard = (aleck_input == 1) ||
+	                         ((aleck_input == 3) && !aleck_dips[4]);
+wire aleck_pif_keyboard = !aleck_e90 && ((aleck_input == 0) ||
+	                     ((aleck_input == 3) && aleck_dips[4]));
+
+reg [31:0] keyboard_joy1;
+reg [31:0] keyboard_joy2;
+always @* begin
+	keyboard_joy1 = 0;
+	keyboard_joy2 = 0;
+
+	if(aleck_mode) begin
+		if(aleck_input == 2) begin
+			keyboard_joy1[22:0] = key_mahjong;
+		end else if(aleck_e90) begin
+			keyboard_joy1[3:0] = key_p1_dir;
+			keyboard_joy2[3:0] = key_p2_dir;
+			keyboard_joy1[5:4] = key_p1_btn[1:0];
+			keyboard_joy2[5:4] = key_p2_btn[1:0];
+			keyboard_joy1[6] = key_start[0];
+			keyboard_joy2[6] = key_start[1];
+			keyboard_joy1[7] = key_coin[0];
+			keyboard_joy2[7] = key_coin[1];
+			keyboard_joy1[8] = key_service;
+			keyboard_joy1[9] = key_test;
+		end else if(aleck_direct_keyboard) begin
+			keyboard_joy1[3:0] = key_p1_dir;
+			keyboard_joy2[3:0] = key_p2_dir;
+			keyboard_joy1[6:4] = key_p1_btn[2:0];
+			keyboard_joy2[6:4] = key_p2_btn[2:0];
+			keyboard_joy1[7] = key_start[0];
+			keyboard_joy2[7] = key_start[1];
+			keyboard_joy1[8] = key_coin[0];
+			keyboard_joy2[8] = key_coin[1];
+			keyboard_joy1[9] = key_service;
+			keyboard_joy1[10] = key_test;
+		end else begin
+			// PIF games retain the N64 button layout. MAME buttons 3/4
+			// correspond to the MRA's logical C/D controls at R/C-Right.
+			keyboard_joy1[5:4] = key_p1_btn[1:0];
+			keyboard_joy2[5:4] = key_p2_btn[1:0];
+			keyboard_joy1[8] = key_p1_btn[2];
+			keyboard_joy2[8] = key_p2_btn[2];
+			keyboard_joy1[11] = key_p1_btn[3];
+			keyboard_joy2[11] = key_p2_btn[3];
+			keyboard_joy1[6] = key_start[0];
+			keyboard_joy2[6] = key_start[1];
+			keyboard_joy1[15] = key_coin[0];
+			keyboard_joy2[15] = key_coin[1];
+			keyboard_joy1[16] = key_service;
+			keyboard_joy1[17] = key_test;
+		end
+	end
+end
+
+assign joy  = joy_unmod  | keyboard_joy1;
+assign joy2 = joy2_unmod | keyboard_joy2;
+
+// Aleck64 PIF titles use the N64 analog stick for their MAME directions.
+// A keyboard direction overrides that axis while held; opposing keys center it.
+wire [7:0] key_p1_analog_h = (key_p1_dir[0] == key_p1_dir[1]) ? 8'h00 :
+	                         (key_p1_dir[0] ? 8'h55 : 8'hAB);
+wire [7:0] key_p1_analog_v = (key_p1_dir[2] == key_p1_dir[3]) ? 8'h00 :
+	                         (key_p1_dir[2] ? 8'h55 : 8'hAB);
+wire [7:0] key_p2_analog_h = (key_p2_dir[0] == key_p2_dir[1]) ? 8'h00 :
+	                         (key_p2_dir[0] ? 8'h55 : 8'hAB);
+wire [7:0] key_p2_analog_v = (key_p2_dir[2] == key_p2_dir[3]) ? 8'h00 :
+	                         (key_p2_dir[2] ? 8'h55 : 8'hAB);
+wire [7:0] pad_0_analog_h = (aleck_mode && aleck_pif_keyboard && |key_p1_dir[1:0]) ? key_p1_analog_h : joystick_analog_l0[7:0];
+wire [7:0] pad_0_analog_v = (aleck_mode && aleck_pif_keyboard && |key_p1_dir[3:2]) ? key_p1_analog_v : joystick_analog_l0[15:8];
+wire [7:0] pad_1_analog_h = (aleck_mode && aleck_pif_keyboard && |key_p2_dir[1:0]) ? key_p2_analog_h : joystick_analog_l1[7:0];
+wire [7:0] pad_1_analog_v = (aleck_mode && aleck_pif_keyboard && |key_p2_dir[3:2]) ? key_p2_analog_v : joystick_analog_l1[15:8];
 
 ////////////////////////////  PIFROM download  ///////////////////////////////////
 
@@ -973,10 +1135,10 @@ n64top
    .pad_C_DOWN       ({joy4[12],joy3[12],joy2[12],joy[12]}),
    .pad_C_LEFT       ({joy4[13],joy3[13],joy2[13],joy[13]}),
    .pad_C_RIGHT      ({joy4[11],joy3[11],joy2[11],joy[11]}),
-   .pad_0_analog_h   (joystick_analog_l0[7:0]),
-   .pad_0_analog_v   (joystick_analog_l0[15:8]),
-   .pad_1_analog_h   (joystick_analog_l1[7:0]),
-   .pad_1_analog_v   (joystick_analog_l1[15:8]),
+   .pad_0_analog_h   (pad_0_analog_h),
+   .pad_0_analog_v   (pad_0_analog_v),
+   .pad_1_analog_h   (pad_1_analog_h),
+   .pad_1_analog_v   (pad_1_analog_v),
    .pad_2_analog_h   (joystick_analog_l2[7:0]),
    .pad_2_analog_v   (joystick_analog_l2[15:8]),
    .pad_3_analog_h   (joystick_analog_l3[7:0]),
@@ -987,8 +1149,6 @@ n64top
    .MouseMiddle(mouse[2]),
    .MouseX({mouse[4],mouse[15:8]}),
    .MouseY({mouse[5],mouse[23:16]}),
-   .KeyboardPS2Key(ps2_key),
-   .KeyBoardLED(ps2_kbd_led_status),
  
     // snac  
    .PIFCOMPARE             (status[91]),
@@ -1149,4 +1309,3 @@ N64_SNAC N64_SNAC_inst
 );
 
 endmodule
-        
