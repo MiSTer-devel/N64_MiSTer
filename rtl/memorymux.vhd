@@ -376,6 +376,10 @@ begin
                            bus_slow <= 3;
                         end if;
                         
+                     elsif (mem_address >= 16#04200000# and mem_address < 16#04300000#) then -- DPS
+                        state    <= WAITSLOW;
+                        bus_slow <= 9;
+
                      elsif (mem_address >= 16#04300000# and mem_address < 16#04400000#) then -- MI
                         state    <= WAITBUS;  
                         if (mem_rnw = '1') then
