@@ -75,6 +75,11 @@ architecture arch of vi_videoout_async is
    
    signal vpos_min               : integer range 0 to 511;
    signal vpos_max               : integer range 0 to 511;   
+
+   -- field phase correction in clean HDMI
+   signal crop_prev_start, crop_prev_end : unsigned(8 downto 0) := (others => '0');
+   signal crop_start, crop_end           : unsigned(8 downto 0) := (others => '0');
+   signal crop_valid                    : std_logic := '0';
                   
    signal hpos_min               : integer range 0 to 1023;
    signal hpos_max               : integer range 0 to 1023;
@@ -159,7 +164,10 @@ begin
    VIDEO_H_START <= videoout_settings.VI_H_VIDEO_START + OFFSET_X;
    VIDEO_H_END   <= videoout_settings.VI_H_VIDEO_END + OFFSET_X;
    
-   vpos_min <= to_integer(VIDEO_V_START) when (videoout_settings.fixedBlanks = '0' and videoout_settings.CTRL_SERRATE = '0') else
+   vpos_min <= to_integer(crop_start) when (videoout_settings.fixedBlanks = '0' and
+               videoout_settings.CTRL_SERRATE = '1' and videoout_settings.VI_DIRECTFBMODE = '1' and crop_valid = '1') else
+               to_integer(VIDEO_V_START) when (videoout_settings.fixedBlanks = '0' and
+               (videoout_settings.CTRL_SERRATE = '0' or videoout_settings.VI_DIRECTFBMODE = '1')) else
                22 + OFFSET_Y when (videoout_settings.isPAL = '1' and videoout_settings.CROPVERTICAL = "00") else
                30 + OFFSET_Y when (videoout_settings.isPAL = '1' and videoout_settings.CROPVERTICAL = "01") else
                34 + OFFSET_Y when (videoout_settings.isPAL = '1' and videoout_settings.CROPVERTICAL = "10") else
@@ -167,7 +175,10 @@ begin
                25 + OFFSET_Y when (videoout_settings.isPAL = '0' and videoout_settings.CROPVERTICAL = "01") else
                29 + OFFSET_Y;-- when (videoout_settings.isPAL = '0' and videoout_settings.CROPVERTICAL = "10")
                
-   vpos_max <= to_integer(VIDEO_V_END) when (videoout_settings.fixedBlanks = '0' and videoout_settings.CTRL_SERRATE = '0') else
+   vpos_max <= to_integer(crop_end) when (videoout_settings.fixedBlanks = '0' and
+               videoout_settings.CTRL_SERRATE = '1' and videoout_settings.VI_DIRECTFBMODE = '1' and crop_valid = '1') else
+               to_integer(VIDEO_V_END) when (videoout_settings.fixedBlanks = '0' and
+               (videoout_settings.CTRL_SERRATE = '0' or videoout_settings.VI_DIRECTFBMODE = '1')) else
                310 + OFFSET_Y when (videoout_settings.isPAL = '1' and videoout_settings.CROPVERTICAL = "00") else
                302 + OFFSET_Y when (videoout_settings.isPAL = '1' and videoout_settings.CROPVERTICAL = "01") else
                298 + OFFSET_Y when (videoout_settings.isPAL = '1' and videoout_settings.CROPVERTICAL = "10") else
@@ -183,6 +194,27 @@ begin
    hpos_max <= to_integer(VIDEO_H_END) when (videoout_settings.fixedBlanks = '0') else
                768 + OFFSET_X when (videoout_settings.isPAL = '1') else
                748 + OFFSET_X;
+
+   process (clkvid)
+   begin
+      if rising_edge(clkvid) then
+         if (reset = '1') then
+            crop_valid <= '0';
+         elsif (ce = '1' and hpos = 4 and vpos = VIDEO_V_START - 3) then
+            crop_prev_start <= VIDEO_V_START;
+            crop_prev_end   <= VIDEO_V_END;
+            crop_start      <= VIDEO_V_START;
+            crop_end        <= VIDEO_V_END;
+            crop_valid      <= videoout_settings.CTRL_SERRATE and videoout_settings.VI_DIRECTFBMODE;
+            if (crop_valid = '1') then
+               if (VIDEO_V_START = crop_prev_start + 1 and VIDEO_V_END = crop_prev_end + 1) then
+                  crop_start <= crop_prev_start;
+                  crop_end   <= crop_prev_end;
+               end if;
+            end if;
+         end if;
+      end if;
+   end process;
 
    process (clkvid)
    begin

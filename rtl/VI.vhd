@@ -340,7 +340,8 @@ begin
                      fpscountBCD_next(3 downto 0) <= fpscountBCD_next(3 downto 0) + 1;
                   end if;
                end if;
-               if (VI_ORIGIN(23 downto 12) /= fps_VI_ORIGIN_last(23 downto 12) or VI_CTRL_SERRATE = '0') then
+               -- NBA Courtside 2 clean HDMI fix
+               if (VI_ORIGIN(23 downto 12) /= fps_VI_ORIGIN_last(23 downto 12) or VI_CTRL_SERRATE = '0' or VI_Y_SCALE_FACTOR > x"400") then
                   video_blockVIFB <= '0';
                   sameFrameCnt    <= (others => '0');
                elsif (sameFrameCnt < 30) then

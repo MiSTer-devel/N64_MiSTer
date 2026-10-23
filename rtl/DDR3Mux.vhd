@@ -163,6 +163,7 @@ architecture arch of DDR3Mux is
    signal VIFBfifo_Dout    : std_logic_vector(87 downto 0);
    signal VIFBfifo_Rd      : std_logic := '0';    
    signal VIFBfifo_empty   : std_logic := '0';    
+   signal VIFBfifo_nearfull: std_logic := '0';
 
    -- slow
    signal slow       : unsigned(3 downto 0) := (others => '0');
@@ -278,6 +279,15 @@ begin
                   if (rspfifo_req = '1') then
                   
                      ddr3State <= RSPFIFO;
+
+                  -- retain headroom for DDR read burst and RSP FIFO drain
+                  elsif (VIFBfifo_nearfull = '1' and VIFBfifo_empty = '0' and VIFBfifo_Rd = '0') then
+                     VIFBfifo_Rd <= '1';
+                     ddr3_WE     <= '1';
+                     ddr3_DIN    <= VIFBfifo_Dout(63 downto 0);
+                     ddr3_BE     <= x"FF";
+                     ddr3_ADDR(24 downto 0) <= "0" & VIFBfifo_Dout(87 downto 64);
+                     ddr3_BURSTCNT <= x"01";
                      
                   elsif (PIfifo_empty = '0' and PIfifo_Rd = '0') then
                   
@@ -538,7 +548,7 @@ begin
    (
       SIZE             => 1024,
       DATAWIDTH        => 64 + 24, -- 64bit data + 24 bit address
-      NEARFULLDISTANCE => 1000
+      NEARFULLDISTANCE => 768
    )
    port map
    ( 
@@ -547,7 +557,7 @@ begin
       Din      => VIFBfifo_Din,     
       Wr       => (VIFBfifo_Wr and clk2xIndex),
       Full     => open,    
-      NearFull => open,
+      NearFull => VIFBfifo_nearfull,
       Dout     => VIFBfifo_Dout,    
       Rd       => VIFBfifo_Rd,      
       Empty    => VIFBfifo_empty   

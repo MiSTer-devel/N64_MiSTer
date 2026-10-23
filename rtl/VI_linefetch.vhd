@@ -15,6 +15,8 @@ entity VI_linefetch is
       error_linefetch    : out std_logic := '0';
       
       VI_DIRECTFBMODE    : in  std_logic;
+      -- don't key weave on SERRATE only
+      VI_DIRECTFB_2LINES : in  std_logic;
       
       VI_CTRL_TYPE       : in unsigned(1 downto 0);
       VI_CTRL_SERRATE    : in std_logic;
@@ -157,6 +159,7 @@ begin
                         ram_offset    <= (others => '0');
                         lineInFetched <= "011";
                         lineProcCnt   <= '0';
+                        -- odd-field origin alignment
                         if (VI_CTRL_SERRATE = '1' and interlacedField = '1' and video_blockVIFB = '0') then
                            ram_offset <= to_signed(0, ram_offset'length) - to_integer(lineWidth);
                         end if;
@@ -174,7 +177,7 @@ begin
                      if (y_diff > 0) then
                         state           <= REQUESTLINE;
                         addressExtraAdv <= '0';
-                        if (y_diff > 1 or (VI_DIRECTFBMODE = '1' and video_blockVIFB = '0' and VI_CTRL_SERRATE = '1' and VI_Y_SCALE_FACTOR <= 16#400#)) then
+                        if (y_diff > 1 or (VI_DIRECTFBMODE = '1' and VI_DIRECTFB_2LINES = '1' and video_blockVIFB = '0' and VI_Y_SCALE_FACTOR <= 16#400#)) then
                            lineProcCnt <= '1';
                            if (y_diff > 2 and VI_DIRECTFBMODE = '0') then
                               addressExtraAdv <= '1';

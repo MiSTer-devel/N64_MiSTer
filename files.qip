@@ -3,6 +3,8 @@ set_global_assignment -name QIP_FILE rtl/mem.qip
 set_global_assignment -name QIP_FILE rtl/pll2.qip
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdram.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/savestate_ui.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/auto_crt_ar.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/clean_aspect_cdc.sv
 set_global_assignment -name SYSTEMVERILOG_FILE N64.sv
 set_global_assignment -name SDC_FILE N64.sdc
 set_global_assignment -name VERILOG_FILE rtl/N64_SNAC.v

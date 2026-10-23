@@ -27,7 +27,7 @@ module emu
 	input         RESET,
 
 	//Must be passed to hps_io module
-	inout  [48:0] HPS_BUS,
+	inout  [45:0] HPS_BUS,
 
 	//Base video clock. Usually equals to CLK_SYS.
 	output        CLK_VIDEO,
@@ -57,6 +57,12 @@ module emu
    output         HDMI_FREEZE,
    output         HDMI_BLACKOUT,
    output         HDMI_BOB_DEINT,
+
+	input   [5:0] LFB_FMT,
+	input  [31:0] LFB_BASE,
+	input  [11:0] LFB_WIDTH,
+	input  [11:0] LFB_HEIGHT,
+	input  [13:0] LFB_STRIDE,
 
 `ifdef MISTER_FB
 	// Use framebuffer in DDRAM
@@ -981,6 +987,32 @@ assign CE_PIXEL = video_ce;
    
 reg [11:0] ARCoreX = 12'd4;
 reg [11:0] ARCoreY = 12'd3;
+
+wire [11:0] clean_arx, clean_ary;
+wire clean_aspect_reset, clean_aspect_pal;
+clean_aspect_cdc clean_aspect_controls
+(
+   .clk(clk_vid),
+   .reset_async(reset_or),
+   .enabled_async(clean_hdmi),
+   .pal_async(status[79]), // A = NTSC/MPAL, B = PAL
+   .reset(clean_aspect_reset),
+   .pal(clean_aspect_pal)
+);
+
+auto_crt_ar clean_aspect
+(
+   .clk(clk_vid),
+   .reset(clean_aspect_reset),
+   .ce_pix(video_ce),
+   .use_b(clean_aspect_pal),
+   .hsync(VGA_HS),
+   .vsync(VGA_VS),
+   .hblank(HBlank),
+   .vblank(VBlank),
+   .arx(clean_arx),
+   .ary(clean_ary)
+);
    
 always @(posedge clk_1x) begin
    if (fixed_blanks_off || clean_hdmi) begin // fixed blanks off
@@ -1004,8 +1036,8 @@ always @(posedge clk_1x) begin
 end
    
 wire [1:0] ar = status[48:47];
-assign VIDEO_ARX = (!ar) ? ARCoreX : (ar - 1'd1);
-assign VIDEO_ARY = (!ar) ? ARCoreY : 12'd0;
+assign VIDEO_ARX = (!ar) ? (clean_hdmi ? clean_arx : ARCoreX) : (ar - 1'd1);
+assign VIDEO_ARY = (!ar) ? (clean_hdmi ? clean_ary : ARCoreY) : 12'd0;
 
 ////////////////////////////  SNAC  ///////////////////////////////////
 

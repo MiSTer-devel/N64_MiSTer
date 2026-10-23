@@ -1,6 +1,9 @@
 derive_pll_clocks
 derive_clock_uncertainty
 
+set_false_path -to [get_pins -compatibility_mode {emu|clean_aspect_controls|reset_meta|clrn emu|clean_aspect_controls|reset_sync|clrn}]
+set_false_path -to [get_pins -compatibility_mode {emu|clean_aspect_controls|enabled_meta|d emu|clean_aspect_controls|pal_meta|d}]
+
 set_false_path -from {emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk} -to [get_clocks {emu|pll2|pll2_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk}]
 set_false_path -from {emu|pll|pll_inst|altera_pll_i|general[1].gpll~PLL_OUTPUT_COUNTER|divclk} -to [get_clocks {emu|pll2|pll2_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk}]
 set_false_path -from {FPGA_CLK1_50} -to [get_clocks {emu|pll2|pll2_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk}]

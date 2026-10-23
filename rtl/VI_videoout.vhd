@@ -208,6 +208,7 @@ architecture arch of VI_videoout is
    signal VI_DEBLUR_2xscale   : std_logic;
    
    signal gotFirstFrame       : std_logic := '0';
+   signal VI_DIRECTFB_2LINES  : std_logic := '0';
    
    -- overlay
    signal overlay_xpos        : unsigned(9 downto 0);
@@ -259,13 +260,16 @@ begin
       if rising_edge(clk1x) then
       
          VI_WIDTH_adjust <= VI_WIDTH;
+         VI_DIRECTFB_2LINES <= '0';
          
          if (VI_CTRL_SERRATE = '1' and videoout_settings.VI_DIRECTFBMODE = '1' and VI_WIDTH >= 512 and VI_X_SCALE_FACTOR <= x"200") then
             VI_WIDTH_adjust <= '0' & VI_WIDTH(11 downto 1);
+            VI_DIRECTFB_2LINES <= '1';
          end if;         
          
          if (VI_CTRL_SERRATE = '1' and videoout_settings.VI_DIRECTFBMODE = '1' and VI_WIDTH >= 1280 and VI_X_SCALE_FACTOR = x"400") then
             VI_WIDTH_adjust <= '0' & VI_WIDTH(11 downto 1);
+            VI_DIRECTFB_2LINES <= '1';
          end if;
          
          if (newFrame = '1') then
@@ -304,6 +308,7 @@ begin
       error_linefetch    => error_linefetch,
       
       VI_DIRECTFBMODE    => videoout_settings.VI_DIRECTFBMODE,
+      VI_DIRECTFB_2LINES => VI_DIRECTFB_2LINES,
                                         
       VI_CTRL_TYPE       => VI_CTRL_TYPE,     
       VI_CTRL_SERRATE    => VI_CTRL_SERRATE,  

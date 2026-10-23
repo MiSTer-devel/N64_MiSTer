@@ -167,6 +167,9 @@ begin
             when IDLE =>
                if (newFrame = '1') then
                   fetch_y   <= (others => '0');
+                  if (VI_H_VIDEO_END <= VI_H_VIDEO_START) then
+                     line_x_end <= (others => '0');
+                  end if;
                end if;
                if (startOut = '1') then
                   state       <= STARTFETCH;
@@ -223,10 +226,13 @@ begin
 
                dx             <= dx + 1;
                fetch_x        <= fetch_x + 1;
+               -- use source dimensions for clean HDMI
+               if (dx + 1 = VI_H_VIDEO_END or (fetch_x >= 639 and dx < VI_H_VIDEO_END)) then
+                  line_x_end <= x_accu(19 downto 10);
+               end if;
                if (fetch_x >= 639) then
                   state      <= IDLE;
                   fetch_y    <= fetch_y + 1;
-                  line_x_end <= x_accu(19 downto 10);
                end if;
                
                bi_start       <= '1';
