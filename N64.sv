@@ -399,7 +399,8 @@ parameter CONF_STR = {
    
 	"R0,Reset;",
    "J1,A,B,Start,L,R,Z,C Up,C Right,C Down,C Left,Softreset;",
-	"jn,A,B,Start,L,R,Z,C Up,C Right,C Down,C Left;",
+	"jn,A,B,Start,L,R,L2,RY_UP,RX_RIGHT,RY_DOWN,RX_LEFT;",
+	"jp,B,Y,Start,L,R,L2,RY_UP,RX_RIGHT,RY_DOWN,RX_LEFT;",
 	"I,",
 	"Load=DPAD Up|Save=Down|Slot=L+R,",
 	"Active Slot 1,",
