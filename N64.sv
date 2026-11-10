@@ -27,7 +27,7 @@ module emu
 	input         RESET,
 
 	//Must be passed to hps_io module
-	inout  [48:0] HPS_BUS,
+	inout  [45:0] HPS_BUS,
 
 	//Base video clock. Usually equals to CLK_SYS.
 	output        CLK_VIDEO,
@@ -57,6 +57,12 @@ module emu
    output         HDMI_FREEZE,
    output         HDMI_BLACKOUT,
    output         HDMI_BOB_DEINT,
+
+	input   [5:0] LFB_FMT,
+	input  [31:0] LFB_BASE,
+	input  [11:0] LFB_WIDTH,
+	input  [11:0] LFB_HEIGHT,
+	input  [13:0] LFB_STRIDE,
 
 `ifdef MISTER_FB
 	// Use framebuffer in DDRAM
@@ -393,7 +399,8 @@ parameter CONF_STR = {
    
 	"R0,Reset;",
    "J1,A,B,Start,L,R,Z,C Up,C Right,C Down,C Left,Softreset;",
-	"jn,A,B,Start,L,R,Z,C Up,C Right,C Down,C Left;",
+	"jn,A,B,Start,L,R,L2,RY_UP,RX_RIGHT,RY_DOWN,RX_LEFT;",
+	"jp,B,Y,Start,L,R,L2,RY_UP,RX_RIGHT,RY_DOWN,RX_LEFT;",
 	"I,",
 	"Load=DPAD Up|Save=Down|Slot=L+R,",
 	"Active Slot 1,",
